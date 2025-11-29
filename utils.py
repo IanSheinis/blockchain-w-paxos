@@ -1,0 +1,1 @@
+#TODO after bankaccount and block class make function which writes classes to json

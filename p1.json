@@ -1,0 +1,28 @@
+{
+  "blockchain": [
+    {
+      "sender_id": "P1",
+      "receiver_id": "P2",
+      "amount": 50,
+      "hash_pointer": "0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce": "ruKE7dB3tG3pSyDL",
+      "hash_result": "99a96410acdb525b5cf5a18d57639efcec8dbc326cb1ce997451b10edfbaea94"
+    },
+    {
+      "sender_id": "P2",
+      "receiver_id": "P3",
+      "amount": 25,
+      "hash_pointer": "2b60e6767d882fa40589f22af6b15da205c4948f9b66d4abb497ad577399cf5a",
+      "nonce": "SXuBOYuwsno3vszX",
+      "hash_result": "d3895351288512bf7c519fc696ca94b807cf128557cb25330ddc199e06751151"
+    },
+    {
+      "sender_id": "P3",
+      "receiver_id": "P1",
+      "amount": 10,
+      "hash_pointer": "bdc11747cd8bbed2037515bb3864ef3593922f133999bff8814c581caa809849",
+      "nonce": "XK7De2S6qu22HoMn",
+      "hash_result": "359d9ed222befca649d7757de62469e9a2d1201cf3cd486c5f37b29668aa07d2"
+    }
+  ]
+}

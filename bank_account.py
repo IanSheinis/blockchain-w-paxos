@@ -1,30 +1,55 @@
+import config
 from block import Block, Transaction
+
 class Bank_Account:
     balances: dict
-    def __init__(self) -> None:
-        self.balances = {
-            "P1": 100.0,
-            "P2": 100.0,
-            "P3": 100.0,
-            "P4": 100.0,
-            "P5": 100.0
-        }
+    
+    def __init__(self, block: Block | None = None) -> None:
+        """
+        Initialize bank accounts.
+        If block (tail) is provided, rebuild balances from entire blockchain.
+        Otherwise, start with default initial balances.
+        """
+        # "each with a balance starting with $100"
+        self.balances = config.INITIAL_BALANCES.copy()  # Use .copy() to avoid reference issues
+        
+        # If blockchain provided, rebuild from transactions
+        if block is not None:
+            self._rebuild_from_blockchain(block)
+    
+    def _rebuild_from_blockchain(self, tail: Block):
+        """Rebuild balances by applying all transactions from blockchain"""
+        blocks = []
+        current = tail
+        while current is not None:
+            blocks.append(current)
+            current = current.prev_block
+        
+        blocks.reverse()
+        
+        for block in blocks:
+            self.transfer(block)
+        
+        print(f"✓ Rebuilt balances from {len(blocks)} blocks")
 
     def transfer(self, block: Block):
-        """
-        Executes transaction
-        """
+        """Execute transaction"""
         transaction: Transaction = block.transaction
-
         sender = transaction.sender_id
         receiver = transaction.receiver_id
         amount = transaction.amount
         
         # Validation
+        if sender not in self.balances:
+            raise ValueError(f"Unknown sender: {sender}")
+        
+        if receiver not in self.balances:
+            raise ValueError(f"Unknown receiver: {receiver}")
+        
         if self.balances[sender] < amount:
             raise ValueError(
-                f"Insufficient balance! {sender} has ${self.balances[sender]}, "
-                f"needs ${amount}"
+                f"Insufficient balance! {sender} has ${self.balances[sender]:.2f}, "
+                f"needs ${amount:.2f}"
             )
         
         # Execute transfer
@@ -32,7 +57,12 @@ class Bank_Account:
         self.balances[receiver] += amount
 
     def get_balance(self, node_id: str) -> float:
-        """
-        Get balance for a node
-        """
-        return self.balances[node_id]
+        """Get balance for a node"""
+        return self.balances.get(node_id, 0.0)
+    
+    def print_balances(self) -> None:
+        """Print all account balances (for printBalance command)"""
+        print("\n=== Bank Accounts ===")
+        for account in sorted(self.balances.keys()):
+            balance = self.balances[account]
+            print(f"{account}: ${balance:.2f}")

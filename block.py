@@ -3,12 +3,8 @@ from dataclasses import dataclass, asdict
 import random, string
 import hashlib
 import json
+from transaction import Transaction
 
-@dataclass
-class Transaction:
-    sender_id: str
-    receiver_id: str
-    amount: int
 
 @dataclass
 class Block_Json:

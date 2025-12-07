@@ -71,13 +71,19 @@ class Block:
         if not blockchain_list:
             return None
         
+        tentative = blockchain_dict.get("tentative", False) # Default to false, need to be careful of this
+        if tentative == None:
+            raise ValueError("No tentative")
         current: Block | None = None
         
         for block_dict in blockchain_list:
             block_json = Block_Json.from_dict(block_dict)
             block = block_json.to_block(current)
             current = block
-        
+        if not current:
+            return None
+        if tentative:
+            return current.prev_block
         return current
     
     @classmethod
@@ -101,16 +107,18 @@ class Block:
             print(f"⚠️ {filename} not found")
             return None
         except json.JSONDecodeError as e:
-            print(f"✗ Invalid JSON in {filename}: {e}")
-            return None
+            raise ValueError(f"✗ Invalid JSON in {filename}: {e}")
 
-    def write_to_json(self, filename: str):
+    def write_to_json(self, filename: str, tentative: bool = False):
         """Write blockchain to JSON file"""
         if filename not in config.CORRECT_FILE_NAMES:
             raise ValueError(f"Filename must be one of: p1.json, p2.json, p3.json, p4.json, p5.json. Got: {filename}")
     
         data = self.to_json()
-    
+        if tentative: # if the node is a participant, when it receives a block from the leader it needs to write the block to the file and tag is as tentative
+            data["tentative"] = True
+        else:
+            data["tentative"] = False
         with open(filename, 'w') as f:
             json.dump(data, f, indent=2)
 
@@ -171,10 +179,12 @@ class Block:
     def __str__(self) -> str:
         """Print block info"""
         return (
+            f"\n☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐\n"
             f"{self.transaction}\n"
             f"prev_block's address: {id(self.prev_block)}\n"
             f"hash_pointer: {self.hash_pointer}\n"
             f"nonce: {self.nonce}\n"
             f"hash w/ nonce: {self.hash_result}"
+            f"☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐\n"
         )
     

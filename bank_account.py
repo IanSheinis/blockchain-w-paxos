@@ -58,8 +58,19 @@ class Bank_Account:
 
     def get_balance(self, node_id: str) -> float:
         """Get balance for a node"""
-        return self.balances.get(node_id, 0.0)
+        balance = self.balances.get(node_id)
+        if not balance:
+            raise ValueError(f'Tried bankaccount get_balance, no process found of {node_id}')
+        return balance
     
+    def get_balances_string(self) -> str:
+        """Return a string of all account balances (for printBalance command)"""
+        result = "\n=== Bank Accounts ===\n"
+        for account in sorted(self.balances.keys()):
+            balance = self.balances[account]
+            result += f"{account}: ${balance:.2f}\n"
+        return result
+
     def print_balances(self) -> None:
         """Print all account balances (for printBalance command)"""
         print("\n=== Bank Accounts ===")

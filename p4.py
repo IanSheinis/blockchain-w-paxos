@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Process P1 - Blockchain node
-Run with: python p1.py
+Process P4 - Blockchain node
+Run with: python p4.py
 """
 
 import asyncio
@@ -9,8 +9,8 @@ import sys
 from paxos import paxos
 
 async def main():
-    # Create paxos node for P1
-    process_name = "P1"
+    # Create paxos node for P4
+    process_name = "P4"
     node = paxos(process_name)
     
     print(f"{'='*60}")
@@ -24,5 +24,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n\nShutting down P1...")
+        print("\n\nShutting down P4...")
         sys.exit(0)

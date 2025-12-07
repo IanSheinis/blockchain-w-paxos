@@ -1,5 +1,6 @@
+import random
 import json
-import queue
+from collections import deque
 import config
 from enum import Enum
 import asyncio
@@ -7,6 +8,7 @@ import json
 import math
 import block
 import transaction
+import bank_account
 class paxos_enum():
     class proposer(Enum):
         PREPARE = 'PREPARE'
@@ -51,7 +53,7 @@ class proposer:
         self.active_tasks: set[asyncio.Task] = set()
         self.decision_lock = asyncio.Lock()  # Prevent concurrent decision processing
 
-    async def prepare(self, transaction: transaction.Transaction, current_blockchain: block.Block) -> bool:
+    async def prepare(self, transaction: transaction.Transaction, current_blockchain: block.Block | None) -> bool:
         """
         Phase 1: Send PREPARE to all acceptors, wait for majority PROMISE
         Returns as soon as majority is reached (doesn't wait for all)
@@ -63,7 +65,11 @@ class proposer:
         # Calculate majority needed
         majority_needed = math.ceil(len(self.external_process_id) / 2)
     
-        depth = current_blockchain.length()
+        depth: int
+        if not current_blockchain:
+            depth = 1 # Add 1 because it would be the same as a blockchain otherwise
+        else:
+            depth = current_blockchain.length() + 1 #"An acceptor does not accept prepare or accept messages from a contending leader if the depth of the block being proposed is lower than the acceptor's depth of its copy of the blockchain."
         # Create tasks for all processes
         tasks = {}
         for process in self.external_process_id:
@@ -90,7 +96,8 @@ class proposer:
                     raise ValueError(f'No from for process: {self.process_id}')
                 # Check if it's a valid PROMISE
                 if isinstance(result, dict):
-                    if result.get(paxos_enum.json.TYPE.value) == paxos_enum.acceptor.PREPARE_PROMISE.value:
+                    result_type = result.get(paxos_enum.json.TYPE.value)
+                    if result_type == paxos_enum.acceptor.PREPARE_PROMISE.value:
                         promises.append(result)
                         print(f"Process {self.process_id}: Got promise #{len(promises)} from {from_process}")
                 
@@ -98,11 +105,19 @@ class proposer:
                             print(f"Process {self.process_id}: Got majority ({len(promises)}/{majority_needed})!")
                             break
 
-                    if result.get(paxos_enum.json.TYPE.value) == paxos_enum.acceptor.PREPARE_REJECT.value:
-                        promise_ballot = int(result.get(paxos_enum.json.PROMISED_BALLOT.value,-1)) #type error if no -1
-                        if promise_ballot == -1:
+                    elif result_type == paxos_enum.acceptor.PREPARE_REJECT.value:
+                        promise_ballot = int(result.get(paxos_enum.json.PROMISED_BALLOT.value, -100)) #type error if no -100
+                        if promise_ballot == -100:
                             raise ValueError(f"Process {self.process_id}: should not be -1 here")
                         max_seen_ballot = max(promise_ballot, max_seen_ballot)
+
+                    elif result_type == paxos_enum.acceptor.NO_RESPONSE.value:
+                        print(f"Process {self.process_id} No response from ${from_process} in accept")
+
+                    else:
+                        raise ValueError(f"Got unexpected response from {from_process}: {result_type}")
+
+                    
                 else:
                     raise ValueError(f"Process {self.process_id} did not receive a dict in proposer prepare")
             
@@ -141,6 +156,9 @@ class proposer:
             if not acceptVal or acceptNum == -1:
                 new_blockchain: block.Block = block.Block(transaction, current_blockchain)
                 acceptVal = new_blockchain.to_json() # Send whole new block chain each time
+                print(f"Created new block: ")
+                print(new_blockchain) # You are expected to print the nonce and the hash values once the correct hash is computed... Also, print the hash pointers in the blockchain."
+
             accept_success: bool = await self.accept(self.ballotNum, acceptVal, depth)
             if accept_success: 
                 return accept_success # Bool chain
@@ -265,6 +283,8 @@ class proposer:
                     highest_promised_ballot = max(promised_ballot, highest_promised_ballot)
                     print(f"Process {self.process_id}: Accept rejected by {from_process}, promised_ballot={promised_ballot}")
 
+                elif result_type == paxos_enum.acceptor.NO_RESPONSE.value:
+                    print(f"Process {self.process_id} No response from ${from_process} in accept")
                 else:
                     raise ValueError(f"Got unexpected response from {from_process}: {result_type}")
             
@@ -488,7 +508,7 @@ class acceptor:
         proposer_depth = response.get(paxos_enum.json.DEPTH.value)
         if proposer_depth is None:
             raise ValueError(f"{self.process_id} got no depth from {process_from}")
-
+        print(f"Current acceptor.prepare\nbal: {bal}\nself.BallotNum: {self.BallotNum}\nproposer_depth: {proposer_depth}\ndepth: {depth}")
         if bal > self.BallotNum and proposer_depth > depth:
             # Accept the prepare - send PROMISE
             self.BallotNum = bal
@@ -574,16 +594,20 @@ class acceptor:
         
 class paxos:
     def __init__(self, process_name: str):
-        if process_name not in config.CORRECT_FILE_NAMES:
+        if process_name not in config.CORRECT_PROCESS_NAMES:
             raise ValueError('Incorrect process name')
         self.process = process_name
         self.external_processes = [process for process in config.CORRECT_PROCESS_NAMES if process != self.process]
         self.proposer = proposer(self.process, self.external_processes)
         self.acceptor = acceptor(self.process)
-        self.blockchain: block.Block | None = None  # Current blockchain
+        self.filename = config.CORRECT_FILE_NAMES_DICT.get(self.process)
+        if not self.filename: raise ValueError("self.filename is None")
+        self.blockchain: block.Block | None = block.Block.load_from_json(self.filename)  # Current blockchain
+        self.bankaccount: bank_account.Bank_Account = bank_account.Bank_Account(self.blockchain) # Initialized bank account
         self.decision_lock = asyncio.Lock()  # Prevent concurrent decision processing
-        self.transaction_queue = queue.Queue() # TODO incorporate proposer logic and have queue added when master sends a request, and removed when proposer makes decision. Make sure to incorporate random waits when retrying. Makesure proposer blockchain is updated too
-    
+        self.proposer_lock = asyncio.Lock()  # Prevent concurrent decision processing
+        self.transaction_queue = deque()
+        
     async def start_server(self):
         """
         Start server to listen for incoming Paxos messages
@@ -594,7 +618,7 @@ class paxos:
             raise ValueError(f"No port configured for process {self.process}")
         
         server = await asyncio.start_server(
-            self.handle_client,
+            self._handle_client,
             'localhost',
             port
         )
@@ -604,7 +628,7 @@ class paxos:
         async with server:
             await server.serve_forever()
 
-    async def handle_client(self, reader, writer):
+    async def _handle_client(self, reader, writer):
         """
         Handle incoming Paxos messages (as acceptor)
         Routes messages to appropriate acceptor methods
@@ -617,6 +641,9 @@ class paxos:
                 print(f"Process {self.process}: Received empty message")
                 return
             
+            # "All message exchanges should have a constant delay (e.g., 3 seconds)."
+            await asyncio.sleep(config.DELAY)
+
             # Parse message
             message = json.loads(data.decode('utf-8'))
             message_type = message.get(paxos_enum.json.TYPE.value)
@@ -632,12 +659,18 @@ class paxos:
                 
                 # Need to send response back
                 writer.write((json.dumps(response) + '\n').encode('utf-8'))
+                print(f"Sending response: {response}")
                 await writer.drain()
             
             elif message_type == paxos_enum.proposer.ACCEPT.value:
                 response = self.acceptor.accept(message, depth)
                 
+                temp_block = block.Block._blockchain_from_json(self.acceptor.AcceptVal)
+                if not temp_block:
+                    raise ValueError(f"For process {self.process}, temp_block is None")
+                self.update_blockchain(temp_block, True) # if the node is a participant, when it receives a block from the leader it needs to write the block to the file and tag is as tentative.
                 writer.write((json.dumps(response) + '\n').encode('utf-8'))
+                print(f"Sending response: {response}")
                 await writer.drain()
             
             elif message_type == paxos_enum.proposer.DECISION.value:
@@ -645,6 +678,35 @@ class paxos:
                 # No response for DECISION messages
             
             ### Master ###
+
+            elif message_type == transaction.enum_transaction.TRANSACTION.value:
+                trans_dict = message.get(transaction.enum_transaction.TRANSACTION.value)
+                msg_transaction: transaction.Transaction = transaction.Transaction(**trans_dict)
+                self.transaction_queue.append(msg_transaction)
+                await self.handle_transaction()
+
+            elif message_type == transaction.enum_transaction.PRINT_BLOCKCHAIN.value:
+                blockchain_dict: dict
+                if not self.blockchain:
+                    blockchain_dict = {}
+                else:
+                    blockchain_dict = self.blockchain.to_json()
+
+                response = {
+                    "blockchain" : blockchain_dict
+                }
+                writer.write((json.dumps(response) + '\n').encode('utf-8'))
+                await writer.drain()
+
+            elif message_type == transaction.enum_transaction.PRINT_BALANCE.value:
+                balance: str = self.bankaccount.get_balances_string()
+                response: dict = {
+                    paxos_enum.json.FROM.value: self.process,
+                    transaction.enum_transaction.PRINT_BALANCE.value: balance
+                }
+
+                writer.write((json.dumps(response) + '\n').encode('utf-8'))
+                await writer.drain()
             else:
                 raise ValueError(f"Process {self.process}: Unknown message type: {message}")
         
@@ -680,51 +742,95 @@ class paxos:
             if new_blockchain is None:
                 raise ValueError(f"Process {self.process}: Failed to parse blockchain from DECISION")
             
-            # Check if this is newer than what we have
-            if self.blockchain:
-                current_length = self.blockchain.length()
-                new_length = new_blockchain.length()
-                
-                if new_length <= current_length:
-                    print("old block chain: \n " + json.dumps(self.blockchain.to_json()))
-                    print("new block chain: \n " + json.dumps(new_blockchain.to_json()))
-
-                    raise ValueError(f"Process {self.process}: received desision less than current")
-                
-                print(f"Process {self.process}: Updating blockchain from length {current_length} to {new_length}")
-            else:
-                print(f"Process {self.process}: Initializing blockchain with length {new_blockchain.length()}")
+            self.update_blockchain(new_blockchain, False)
             
-            # Update blockchain
-            self.blockchain = new_blockchain
-            
-            print(f"Process {self.process}: Blockchain updated! New length: {self.blockchain.length()}")
-            
-            # Save to disk
-            try:
-                self.blockchain.write_to_json(self.process)
-            except Exception as e:
-                raise ValueError(f"Process {self.process}: Error saving blockchain: {e}")
             
             # Need to reset everything after decision
             await self.reset_all()
 
-    async def propose_block(self, transaction: transaction.Transaction) -> bool:
+    async def handle_transaction(self):
         """
-        Propose a new block using Paxos consensus
+        Check queue and try to propose message with retry on failure.
         """
-        print(f"Process {self.process}: Proposing new block")
+        while True:  # Loop for retries
+            async with self.proposer_lock:
+                if not self.transaction_queue:
+                    return  # Exit if queue is empty (no more work)
+                
+                success = await self.propose_block()
+                if success:
+                    return  
+                
+            # Retry logic outside the lock to avoid re-acquiring while held
+            sleep_time = config.DELAY * 5 + config.DELAY * 3 * random.random() # Random sleep time to ensure termination of paxos
+            print(f"{self.process} failed proposing, will wait {sleep_time}\nCurrent transaction queue {self.transaction_queue}")
+            await asyncio.sleep(sleep_time)
+
+
+    async def propose_block(self) -> bool:
+        """
+        Propose a new block using Paxos consensus TODO make this better
+        """
+        transaction: transaction.Transaction = self.transaction_queue[0]
+
+        # Check if bank account has funds
+        # "Once a block is decided on disk, a transfer operation in the block is executed on the Bank Accounts Table"
+        if self.bankaccount.get_balance(transaction.sender_id) < transaction.amount:
+            print(f"{transaction.sender_id} DOES NOT HAVE THE FUNDS TO MAKE TRANSACTION OF {transaction.amount} TO {transaction.receiver_id}")
+            self.transaction_queue.popleft() # Transaction is nullified
+            return True
+        
+        print(f"Process {self.process}: Proposing new block with transaction {transaction}")
         
         if not self.blockchain:
-            raise ValueError(f"{(self.process)} does not have a blockchain")
+            print(f"${self.process} has blockchain as none")
         success = await self.proposer.prepare(transaction, self.blockchain)
         
         if success:
             print(f"Process {self.process}: Block proposal succeeded!")
+            self.transaction_queue.popleft() # Remove transaction
+            accepted_dict = self.proposer.acceptVal
+            if not accepted_dict: 
+                raise ValueError('AcceptVal is none')
+            accepted_block: block.Block | None = block.Block._blockchain_from_json(accepted_dict)
+            if not accepted_block:
+                raise ValueError('accepted_block is None')
+            self.update_blockchain(accepted_block, tentative=False)
+            await self.reset_all()
         else:
             print(f"Process {self.process}: Block proposal failed")
         
         return success
+
+    def update_blockchain(self, new_blockchain: block.Block, tentative: bool = False):
+        # Check if this is newer than what we have
+        if self.blockchain:
+            current_length = self.blockchain.length()
+            new_length = new_blockchain.length()
+                
+            if new_length < current_length:
+                print("old block chain: \n " + json.dumps(self.blockchain.to_json()))
+                print("new block chain: \n " + json.dumps(new_blockchain.to_json()))
+
+                raise ValueError(f"Process {self.process}: received blockchain less than current")
+                
+            print(f"Process {self.process}: Updating blockchain from length {current_length} to {new_length}")
+        else:
+            print(f"Process {self.process}: Initializing blockchain with length {new_blockchain.length()}")
+            
+        # Update blockchain
+        self.blockchain = new_blockchain
+        self.bankaccount = bank_account.Bank_Account(self.blockchain) # "Once a block is decided on disk, a transfer operation in the block is executed on the Bank Accounts Table"
+        print(f"Process {self.process}: Blockchain updated! New length: {self.blockchain.length()}")
+            
+        # Save to disk
+        try:
+            filename = config.CORRECT_FILE_NAMES_DICT.get(self.process)
+            if not filename:
+                raise ValueError(f'Can not find filename for process {self.process}')
+            self.blockchain.write_to_json(filename, tentative)
+        except Exception as e:
+            raise ValueError(f"Process {self.process}: Error saving blockchain: {e}")
 
     async def reset_all(self):
         await self.proposer.reset_all()

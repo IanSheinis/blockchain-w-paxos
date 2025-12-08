@@ -1,3 +1,0 @@
-
-* After, when tentative is true store all as decided except last which will be tentative
-* First time recovery

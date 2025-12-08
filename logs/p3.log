@@ -1,5 +1,4 @@
-✓ Loaded 1 blocks from p3.json
-✓ Rebuilt balances from 1 blocks
+⚠️ p3.json not found
 ============================================================
 Starting Process P3
 ============================================================
@@ -9,170 +8,187 @@ Process P3: Received PREPARE from P1
 Current acceptor.prepare
 bal: 0
 self.BallotNum: -1
-proposer_depth: 2
-depth: 1
+proposer_depth: 1
+depth: 0
 Sending response: {'type': 'PREPARE_PROMISE', 'from': 'P3', 'ballot_num': 0, 'accepted_ballot': -1, 'accepted_value': {}}
-Process P3: Received ACCEPT from P1
-Process P3: ACCEPTED ballot 0, value (full blockchain not just block): '{'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': '0vgj5w3ZB46MGI8z', 'hash_result': '90cd9df81b349bcb45cc43d9543a6de19f9c0bbc9877565c48b5e4e413a64cf3', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '562016e2d716b2123bfd43fcabccf81d8e247bbb64b277429e9645d7fceb51dc', 'nonce': 'Aeb1KaGF2K9nho7H', 'hash_result': '2bee451bab90d7b5699af1b93cffe934f54df70e75682ce81f45fa35f29be701', 'tentative': True}]}'
-Process P3: Updating blockchain from length 1 to 2
-✓ Rebuilt balances from 2 blocks
-Process P3: Blockchain updated! New length: 2
-✓ Blockchain saved to p3.json
-Sending response: {'type': 'ACCEPT_ACCEPTED', 'from': 'P3', 'ballot_num': 0, 'accepted_value': {'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': '0vgj5w3ZB46MGI8z', 'hash_result': '90cd9df81b349bcb45cc43d9543a6de19f9c0bbc9877565c48b5e4e413a64cf3', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '562016e2d716b2123bfd43fcabccf81d8e247bbb64b277429e9645d7fceb51dc', 'nonce': 'Aeb1KaGF2K9nho7H', 'hash_result': '2bee451bab90d7b5699af1b93cffe934f54df70e75682ce81f45fa35f29be701', 'tentative': True}]}}
-Process P3: Received DECISION from P1
-Process P3: Processing DECISION from P1, ballot 0
-Process P3: Updating blockchain from length 2 to 2
-✓ Rebuilt balances from 2 blocks
-Process P3: Blockchain updated! New length: 2
-✓ Blockchain saved to p3.json
-Process P3: Resetting proposer state and cancelling tasks
-Process P3: Proposer reset complete
-Process P3: Received PREPARE from P1
-Current acceptor.prepare
-bal: 0
-self.BallotNum: -1
-proposer_depth: 3
-depth: 2
-Sending response: {'type': 'PREPARE_PROMISE', 'from': 'P3', 'ballot_num': 0, 'accepted_ballot': -1, 'accepted_value': {}}
+Process P3: Received transaction from master
+Process P3: Proposing new block with transaction Transaction(sender_id='P3', receiver_id='P4', amount=10)
+P3 has blockchain as none
+Process P3: Starting PREPARE with ballot 0
 Process P3: Received PREPARE from P2
 Current acceptor.prepare
 bal: 0
 self.BallotNum: 0
-proposer_depth: 3
-depth: 2
+proposer_depth: 1
+depth: 0
 Sending response: {'type': 'PREPARE_REJECT', 'from': 'P3', 'ballot_num': 0, 'promised_ballot': 0}
-Process P3: Received transaction from master
-Process P3: Proposing new block with transaction Transaction(sender_id='P3', receiver_id='P4', amount=10)
-Process P3: Starting PREPARE with ballot 0
 Process P3: Received ACCEPT from P1
-Process P3: ACCEPTED ballot 0, value (full blockchain not just block): '{'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': '0vgj5w3ZB46MGI8z', 'hash_result': '90cd9df81b349bcb45cc43d9543a6de19f9c0bbc9877565c48b5e4e413a64cf3', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '562016e2d716b2123bfd43fcabccf81d8e247bbb64b277429e9645d7fceb51dc', 'nonce': 'Aeb1KaGF2K9nho7H', 'hash_result': '2bee451bab90d7b5699af1b93cffe934f54df70e75682ce81f45fa35f29be701', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '4a533ca14e8fdc9ec0b444a146e5779914f98c8502f96ddfc1d147142b42b130', 'nonce': '2lb4hTTEpH715apl', 'hash_result': 'e4f72b5aeb1caa6ff2ffec79e75cd4726a578a764f25bb2794182a096962b643', 'tentative': True}]}'
-Process P3: Updating blockchain from length 2 to 3
-✓ Rebuilt balances from 3 blocks
-Process P3: Blockchain updated! New length: 3
+Process P3: ACCEPTED ballot 0, value (full blockchain not just block): '{'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': 'Zh9hV3GpbFNCTKuY', 'hash_result': '09762baa5895bead94a95fd9f43deedbc41d01da2d7f1959b75fc1a0254dd1a1', 'tentative': True}]}'
+Process P3: Initializing blockchain with length 1
+✓ Rebuilt balances from 1 blocks
+Process P3: Blockchain updated! New length: 1
 ✓ Blockchain saved to p3.json
-Sending response: {'type': 'ACCEPT_ACCEPTED', 'from': 'P3', 'ballot_num': 0, 'accepted_value': {'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': '0vgj5w3ZB46MGI8z', 'hash_result': '90cd9df81b349bcb45cc43d9543a6de19f9c0bbc9877565c48b5e4e413a64cf3', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '562016e2d716b2123bfd43fcabccf81d8e247bbb64b277429e9645d7fceb51dc', 'nonce': 'Aeb1KaGF2K9nho7H', 'hash_result': '2bee451bab90d7b5699af1b93cffe934f54df70e75682ce81f45fa35f29be701', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '4a533ca14e8fdc9ec0b444a146e5779914f98c8502f96ddfc1d147142b42b130', 'nonce': '2lb4hTTEpH715apl', 'hash_result': 'e4f72b5aeb1caa6ff2ffec79e75cd4726a578a764f25bb2794182a096962b643', 'tentative': True}]}}
+Sending response: {'type': 'ACCEPT_ACCEPTED', 'from': 'P3', 'ballot_num': 0, 'accepted_value': {'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': 'Zh9hV3GpbFNCTKuY', 'hash_result': '09762baa5895bead94a95fd9f43deedbc41d01da2d7f1959b75fc1a0254dd1a1', 'tentative': True}]}}
 Process P3: Can't reach majority, stopping early
 Process P3: PREPARE failed (0/2)
  Highest ballot received: 0
 Process P3: Block proposal failed ❌❌❌
-P3 out of loop, will wait 16.648025580828758
+P3 out of loop, will wait 18.023404235178443
 Current transaction queue deque([Transaction(sender_id='P3', receiver_id='P4', amount=10)])
+Process P3: Received PREPARE from P4
+Current acceptor.prepare
+bal: 0
+self.BallotNum: 0
+proposer_depth: 1
+depth: 1
+Sending response: {'type': 'PREPARE_REJECT', 'from': 'P3', 'ballot_num': 0, 'promised_ballot': 0}
 Process P3: Received PREPARE from P5
 Current acceptor.prepare
 bal: 0
 self.BallotNum: 0
-proposer_depth: 4
-depth: 3
+proposer_depth: 2
+depth: 1
 Sending response: {'type': 'PREPARE_REJECT', 'from': 'P3', 'ballot_num': 0, 'promised_ballot': 0}
 Process P3: Received DECISION from P1
 Process P3: Processing DECISION from P1, ballot 0
-Process P3: Updating blockchain from length 3 to 3
-✓ Rebuilt balances from 3 blocks
-Process P3: Blockchain updated! New length: 3
+Process P3: Updating blockchain from length 1 to 1
+✓ Rebuilt balances from 1 blocks
+Process P3: Blockchain updated! New length: 1
 ✓ Blockchain saved to p3.json
 Process P3: Resetting proposer state and cancelling tasks
 Process P3: Proposer reset complete
 Process P3: Proposing new block with transaction Transaction(sender_id='P3', receiver_id='P4', amount=10)
 Process P3: Starting PREPARE with ballot 0
-Process P3: Received PREPARE from P2
+Process P3: Received PREPARE from P5
 Current acceptor.prepare
 bal: 0
 self.BallotNum: -1
-proposer_depth: 4
-depth: 3
+proposer_depth: 2
+depth: 1
 Sending response: {'type': 'PREPARE_PROMISE', 'from': 'P3', 'ballot_num': 0, 'accepted_ballot': -1, 'accepted_value': {}}
+Process P3: Received PREPARE from P2
+Current acceptor.prepare
+bal: 0
+self.BallotNum: 0
+proposer_depth: 2
+depth: 1
+Sending response: {'type': 'PREPARE_REJECT', 'from': 'P3', 'ballot_num': 0, 'promised_ballot': 0}
+Process P3: Received PREPARE from P4
+Current acceptor.prepare
+bal: 0
+self.BallotNum: 0
+proposer_depth: 2
+depth: 1
+Sending response: {'type': 'PREPARE_REJECT', 'from': 'P3', 'ballot_num': 0, 'promised_ballot': 0}
 Process P3: Got promise #1 from P2
-Process P3: Got promise #2 from P5
+Process P3: Can't reach majority, stopping early
+Process P3: PREPARE failed (1/2)
+ Highest ballot received: 0
+Process P3: Block proposal failed ❌❌❌
+P3 out of loop, will wait 15.379556597323262
+Current transaction queue deque([Transaction(sender_id='P3', receiver_id='P4', amount=10)])
+Process P3: Received ACCEPT from P2
+Process P3: ACCEPTED ballot 0, value (full blockchain not just block): '{'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': 'Zh9hV3GpbFNCTKuY', 'hash_result': '09762baa5895bead94a95fd9f43deedbc41d01da2d7f1959b75fc1a0254dd1a1', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'eaf50615b70aba26c0de874b10a7595e4f8029cfaa0f9b58961a8f282fcbb45b', 'nonce': 'OEtJ7TFYLtmXwPdm', 'hash_result': '4a6b9266060c9f9c4d5e382a31c7e97d1c479975910cac518ffc1493d6d4eaa4', 'tentative': True}]}'
+Process P3: Updating blockchain from length 1 to 2
+✓ Rebuilt balances from 2 blocks
+Process P3: Blockchain updated! New length: 2
+✓ Blockchain saved to p3.json
+Sending response: {'type': 'ACCEPT_ACCEPTED', 'from': 'P3', 'ballot_num': 0, 'accepted_value': {'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': 'Zh9hV3GpbFNCTKuY', 'hash_result': '09762baa5895bead94a95fd9f43deedbc41d01da2d7f1959b75fc1a0254dd1a1', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'eaf50615b70aba26c0de874b10a7595e4f8029cfaa0f9b58961a8f282fcbb45b', 'nonce': 'OEtJ7TFYLtmXwPdm', 'hash_result': '4a6b9266060c9f9c4d5e382a31c7e97d1c479975910cac518ffc1493d6d4eaa4', 'tentative': True}]}}
+Process P3: Proposing new block with transaction Transaction(sender_id='P3', receiver_id='P4', amount=10)
+Process P3: Starting PREPARE with ballot 1
+Process P3: Received DECISION from P2
+Process P3: Got promise #1 from P5
+Process P3: Got promise #2 from P1
 Process P3: Got majority (2/2)!
 Process P3: PREPARE succeeded with 2 promises
-
-☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐
-Created block:
-
-☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐
-Transaction(sender_id='P3', receiver_id='P4', amount=10)
-prev_block's address: 4307998656
-hash_pointer: 1897964683b5a256276789a03f0205c84d1d4306ee0986a459d418b8b3c986ea
-nonce: lWB3rLPlFiJw7nWw
-hash w/ nonce: 4aa2d72085b33382659d9dc136b44cb1e1cacd6e37a30f96259e9e75d6ea3511
-☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐
-
-☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐
-
-Created new block: 
-
-☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐
-Transaction(sender_id='P3', receiver_id='P4', amount=10)
-prev_block's address: 4307998656
-hash_pointer: 1897964683b5a256276789a03f0205c84d1d4306ee0986a459d418b8b3c986ea
-nonce: lWB3rLPlFiJw7nWw
-hash w/ nonce: 4aa2d72085b33382659d9dc136b44cb1e1cacd6e37a30f96259e9e75d6ea3511
-☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐
-
-Process P3: Starting ACCEPT with ballot 0, value '{'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': '0vgj5w3ZB46MGI8z', 'hash_result': '90cd9df81b349bcb45cc43d9543a6de19f9c0bbc9877565c48b5e4e413a64cf3', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '562016e2d716b2123bfd43fcabccf81d8e247bbb64b277429e9645d7fceb51dc', 'nonce': 'Aeb1KaGF2K9nho7H', 'hash_result': '2bee451bab90d7b5699af1b93cffe934f54df70e75682ce81f45fa35f29be701', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '4a533ca14e8fdc9ec0b444a146e5779914f98c8502f96ddfc1d147142b42b130', 'nonce': '2lb4hTTEpH715apl', 'hash_result': 'e4f72b5aeb1caa6ff2ffec79e75cd4726a578a764f25bb2794182a096962b643', 'tentative': False}, {'sender_id': 'P3', 'receiver_id': 'P4', 'amount': 10, 'hash_pointer': '1897964683b5a256276789a03f0205c84d1d4306ee0986a459d418b8b3c986ea', 'nonce': 'lWB3rLPlFiJw7nWw', 'hash_result': '4aa2d72085b33382659d9dc136b44cb1e1cacd6e37a30f96259e9e75d6ea3511', 'tentative': True}]}'
+Process P3: Starting ACCEPT with ballot 1, value '{'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': 'Zh9hV3GpbFNCTKuY', 'hash_result': '09762baa5895bead94a95fd9f43deedbc41d01da2d7f1959b75fc1a0254dd1a1', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'eaf50615b70aba26c0de874b10a7595e4f8029cfaa0f9b58961a8f282fcbb45b', 'nonce': 'OEtJ7TFYLtmXwPdm', 'hash_result': '4a6b9266060c9f9c4d5e382a31c7e97d1c479975910cac518ffc1493d6d4eaa4', 'tentative': True}]}'
+Process P3: Received PREPARE from P4
+Current acceptor.prepare
+bal: 1
+self.BallotNum: 0
+proposer_depth: 3
+depth: 2
+Sending response: {'type': 'PREPARE_PROMISE', 'from': 'P3', 'ballot_num': 1, 'accepted_ballot': 0, 'accepted_value': {'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': 'Zh9hV3GpbFNCTKuY', 'hash_result': '09762baa5895bead94a95fd9f43deedbc41d01da2d7f1959b75fc1a0254dd1a1', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'eaf50615b70aba26c0de874b10a7595e4f8029cfaa0f9b58961a8f282fcbb45b', 'nonce': 'OEtJ7TFYLtmXwPdm', 'hash_result': '4a6b9266060c9f9c4d5e382a31c7e97d1c479975910cac518ffc1493d6d4eaa4', 'tentative': True}]}}
 Process P3: Got accepted #1 from P2
-Process P3: Got accepted #2 from P1
+Process P3: Got accepted #2 from P5
 Process P3: Got majority accepts (2/2)!
 Process P3: ACCEPT succeeded with 2 accepts
-Process P3: Sending DECISION messages with ballot 0
+Process P3: Sending DECISION messages with ballot 1
 Process P3: Sent DECISION to P5
 Process P3: Sent DECISION to P2
 Process P3: Sent DECISION to P4
 Process P3: Sent DECISION to P1
 Process P3: All DECISION messages sent
 Process P3: Block proposal succeeded! ✅✅✅
-Process P3: Updating blockchain from length 3 to 4
-✓ Rebuilt balances from 4 blocks
-Process P3: Blockchain updated! New length: 4
+Process P3: Updating blockchain from length 2 to 2
+✓ Rebuilt balances from 2 blocks
+Process P3: Blockchain updated! New length: 2
 ✓ Blockchain saved to p3.json
 Process P3: Resetting proposer state and cancelling tasks
 Process P3: Proposer reset complete
 Success in proposing loop
-P3 out of loop, will wait 23.803074511179137
+P3 out of loop, will wait 15.099053065178136
 Current transaction queue deque([])
-Process P3: Received PREPARE from P2
-Current acceptor.prepare
-bal: 0
-self.BallotNum: -1
-proposer_depth: 5
-depth: 4
-Sending response: {'type': 'PREPARE_PROMISE', 'from': 'P3', 'ballot_num': 0, 'accepted_ballot': -1, 'accepted_value': {}}
-Process P3: Received ACCEPT from P2
-Process P3: ACCEPTED ballot 0, value (full blockchain not just block): '{'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': '0vgj5w3ZB46MGI8z', 'hash_result': '90cd9df81b349bcb45cc43d9543a6de19f9c0bbc9877565c48b5e4e413a64cf3', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '562016e2d716b2123bfd43fcabccf81d8e247bbb64b277429e9645d7fceb51dc', 'nonce': 'Aeb1KaGF2K9nho7H', 'hash_result': '2bee451bab90d7b5699af1b93cffe934f54df70e75682ce81f45fa35f29be701', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '4a533ca14e8fdc9ec0b444a146e5779914f98c8502f96ddfc1d147142b42b130', 'nonce': '2lb4hTTEpH715apl', 'hash_result': 'e4f72b5aeb1caa6ff2ffec79e75cd4726a578a764f25bb2794182a096962b643', 'tentative': False}, {'sender_id': 'P3', 'receiver_id': 'P4', 'amount': 10, 'hash_pointer': '1897964683b5a256276789a03f0205c84d1d4306ee0986a459d418b8b3c986ea', 'nonce': 'lWB3rLPlFiJw7nWw', 'hash_result': '4aa2d72085b33382659d9dc136b44cb1e1cacd6e37a30f96259e9e75d6ea3511', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'bc279bfdeb1e7daf68d8a38a69bfe2d39e0866305a9bc19873473b08d313c005', 'nonce': 'zIjXd26YdvRvopNz', 'hash_result': 'b2f9332e825a857a8af08e284287ac309266a4bef7e0d2feeb59a75a5b8b2f63', 'tentative': True}]}'
-Process P3: Updating blockchain from length 4 to 5
-✓ Rebuilt balances from 5 blocks
-Process P3: Blockchain updated! New length: 5
-✓ Blockchain saved to p3.json
-Sending response: {'type': 'ACCEPT_ACCEPTED', 'from': 'P3', 'ballot_num': 0, 'accepted_value': {'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': '0vgj5w3ZB46MGI8z', 'hash_result': '90cd9df81b349bcb45cc43d9543a6de19f9c0bbc9877565c48b5e4e413a64cf3', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '562016e2d716b2123bfd43fcabccf81d8e247bbb64b277429e9645d7fceb51dc', 'nonce': 'Aeb1KaGF2K9nho7H', 'hash_result': '2bee451bab90d7b5699af1b93cffe934f54df70e75682ce81f45fa35f29be701', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '4a533ca14e8fdc9ec0b444a146e5779914f98c8502f96ddfc1d147142b42b130', 'nonce': '2lb4hTTEpH715apl', 'hash_result': 'e4f72b5aeb1caa6ff2ffec79e75cd4726a578a764f25bb2794182a096962b643', 'tentative': False}, {'sender_id': 'P3', 'receiver_id': 'P4', 'amount': 10, 'hash_pointer': '1897964683b5a256276789a03f0205c84d1d4306ee0986a459d418b8b3c986ea', 'nonce': 'lWB3rLPlFiJw7nWw', 'hash_result': '4aa2d72085b33382659d9dc136b44cb1e1cacd6e37a30f96259e9e75d6ea3511', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'bc279bfdeb1e7daf68d8a38a69bfe2d39e0866305a9bc19873473b08d313c005', 'nonce': 'zIjXd26YdvRvopNz', 'hash_result': 'b2f9332e825a857a8af08e284287ac309266a4bef7e0d2feeb59a75a5b8b2f63', 'tentative': True}]}}
 Queue is empty, returning
-Process P3: Received DECISION from P2
 Process P3: Processing DECISION from P2, ballot 0
-Process P3: Updating blockchain from length 5 to 5
-✓ Rebuilt balances from 5 blocks
-Process P3: Blockchain updated! New length: 5
+Process P3: Updating blockchain from length 2 to 2
+✓ Rebuilt balances from 2 blocks
+Process P3: Blockchain updated! New length: 2
 ✓ Blockchain saved to p3.json
 Process P3: Resetting proposer state and cancelling tasks
 Process P3: Proposer reset complete
+Queue is empty, returning
+Process P3: Received PREPARE from P4
+Current acceptor.prepare
+bal: 2
+self.BallotNum: -1
+proposer_depth: 3
+depth: 2
+Sending response: {'type': 'PREPARE_PROMISE', 'from': 'P3', 'ballot_num': 2, 'accepted_ballot': -1, 'accepted_value': {}}
 Process P3: Received PREPARE from P5
 Current acceptor.prepare
-bal: 0
-self.BallotNum: -1
-proposer_depth: 6
-depth: 5
-Sending response: {'type': 'PREPARE_PROMISE', 'from': 'P3', 'ballot_num': 0, 'accepted_ballot': -1, 'accepted_value': {}}
-Process P3: Received ACCEPT from P5
-Process P3: ACCEPTED ballot 0, value (full blockchain not just block): '{'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': '0vgj5w3ZB46MGI8z', 'hash_result': '90cd9df81b349bcb45cc43d9543a6de19f9c0bbc9877565c48b5e4e413a64cf3', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '562016e2d716b2123bfd43fcabccf81d8e247bbb64b277429e9645d7fceb51dc', 'nonce': 'Aeb1KaGF2K9nho7H', 'hash_result': '2bee451bab90d7b5699af1b93cffe934f54df70e75682ce81f45fa35f29be701', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '4a533ca14e8fdc9ec0b444a146e5779914f98c8502f96ddfc1d147142b42b130', 'nonce': '2lb4hTTEpH715apl', 'hash_result': 'e4f72b5aeb1caa6ff2ffec79e75cd4726a578a764f25bb2794182a096962b643', 'tentative': False}, {'sender_id': 'P3', 'receiver_id': 'P4', 'amount': 10, 'hash_pointer': '1897964683b5a256276789a03f0205c84d1d4306ee0986a459d418b8b3c986ea', 'nonce': 'lWB3rLPlFiJw7nWw', 'hash_result': '4aa2d72085b33382659d9dc136b44cb1e1cacd6e37a30f96259e9e75d6ea3511', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'bc279bfdeb1e7daf68d8a38a69bfe2d39e0866305a9bc19873473b08d313c005', 'nonce': 'zIjXd26YdvRvopNz', 'hash_result': 'b2f9332e825a857a8af08e284287ac309266a4bef7e0d2feeb59a75a5b8b2f63', 'tentative': False}, {'sender_id': 'P5', 'receiver_id': 'P1', 'amount': 10, 'hash_pointer': 'caef3ac1ae663e55bf3cefca95fbee10ee7b54d9b5fe4bbb8cfc54ce67d47475', 'nonce': 'dRPYiIDqhJj3eTdl', 'hash_result': 'f8d3c45252166ce6d9ab628a5e8ec48bfd09b51cb579011335020fcb07eddc64', 'tentative': True}]}'
-Process P3: Updating blockchain from length 5 to 6
-✓ Rebuilt balances from 6 blocks
-Process P3: Blockchain updated! New length: 6
+bal: 1
+self.BallotNum: 2
+proposer_depth: 3
+depth: 2
+Sending response: {'type': 'PREPARE_REJECT', 'from': 'P3', 'ballot_num': 1, 'promised_ballot': 2}
+Process P3: Received ACCEPT from P4
+Process P3: ACCEPTED ballot 2, value (full blockchain not just block): '{'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': 'Zh9hV3GpbFNCTKuY', 'hash_result': '09762baa5895bead94a95fd9f43deedbc41d01da2d7f1959b75fc1a0254dd1a1', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'eaf50615b70aba26c0de874b10a7595e4f8029cfaa0f9b58961a8f282fcbb45b', 'nonce': 'OEtJ7TFYLtmXwPdm', 'hash_result': '4a6b9266060c9f9c4d5e382a31c7e97d1c479975910cac518ffc1493d6d4eaa4', 'tentative': True}]}'
+Process P3: Updating blockchain from length 2 to 2
+✓ Rebuilt balances from 2 blocks
+Process P3: Blockchain updated! New length: 2
 ✓ Blockchain saved to p3.json
-Sending response: {'type': 'ACCEPT_ACCEPTED', 'from': 'P3', 'ballot_num': 0, 'accepted_value': {'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': '0vgj5w3ZB46MGI8z', 'hash_result': '90cd9df81b349bcb45cc43d9543a6de19f9c0bbc9877565c48b5e4e413a64cf3', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '562016e2d716b2123bfd43fcabccf81d8e247bbb64b277429e9645d7fceb51dc', 'nonce': 'Aeb1KaGF2K9nho7H', 'hash_result': '2bee451bab90d7b5699af1b93cffe934f54df70e75682ce81f45fa35f29be701', 'tentative': False}, {'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '4a533ca14e8fdc9ec0b444a146e5779914f98c8502f96ddfc1d147142b42b130', 'nonce': '2lb4hTTEpH715apl', 'hash_result': 'e4f72b5aeb1caa6ff2ffec79e75cd4726a578a764f25bb2794182a096962b643', 'tentative': False}, {'sender_id': 'P3', 'receiver_id': 'P4', 'amount': 10, 'hash_pointer': '1897964683b5a256276789a03f0205c84d1d4306ee0986a459d418b8b3c986ea', 'nonce': 'lWB3rLPlFiJw7nWw', 'hash_result': '4aa2d72085b33382659d9dc136b44cb1e1cacd6e37a30f96259e9e75d6ea3511', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'bc279bfdeb1e7daf68d8a38a69bfe2d39e0866305a9bc19873473b08d313c005', 'nonce': 'zIjXd26YdvRvopNz', 'hash_result': 'b2f9332e825a857a8af08e284287ac309266a4bef7e0d2feeb59a75a5b8b2f63', 'tentative': False}, {'sender_id': 'P5', 'receiver_id': 'P1', 'amount': 10, 'hash_pointer': 'caef3ac1ae663e55bf3cefca95fbee10ee7b54d9b5fe4bbb8cfc54ce67d47475', 'nonce': 'dRPYiIDqhJj3eTdl', 'hash_result': 'f8d3c45252166ce6d9ab628a5e8ec48bfd09b51cb579011335020fcb07eddc64', 'tentative': True}]}}
-Process P3: Received DECISION from P5
-Process P3: Processing DECISION from P5, ballot 0
-Process P3: Updating blockchain from length 6 to 6
-✓ Rebuilt balances from 6 blocks
-Process P3: Blockchain updated! New length: 6
+Sending response: {'type': 'ACCEPT_ACCEPTED', 'from': 'P3', 'ballot_num': 2, 'accepted_value': {'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': 'Zh9hV3GpbFNCTKuY', 'hash_result': '09762baa5895bead94a95fd9f43deedbc41d01da2d7f1959b75fc1a0254dd1a1', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'eaf50615b70aba26c0de874b10a7595e4f8029cfaa0f9b58961a8f282fcbb45b', 'nonce': 'OEtJ7TFYLtmXwPdm', 'hash_result': '4a6b9266060c9f9c4d5e382a31c7e97d1c479975910cac518ffc1493d6d4eaa4', 'tentative': True}]}}
+Process P3: Received DECISION from P4
+Process P3: Processing DECISION from P4, ballot 2
+Process P3: Updating blockchain from length 2 to 2
+✓ Rebuilt balances from 2 blocks
+Process P3: Blockchain updated! New length: 2
 ✓ Blockchain saved to p3.json
 Process P3: Resetting proposer state and cancelling tasks
 Process P3: Proposer reset complete
-Process P3: Received print_balance from master
+Queue is empty, returning
+Queue is empty, returning
+Process P3: Received PREPARE from P5
+Current acceptor.prepare
+bal: 3
+self.BallotNum: -1
+proposer_depth: 3
+depth: 2
+Sending response: {'type': 'PREPARE_PROMISE', 'from': 'P3', 'ballot_num': 3, 'accepted_ballot': -1, 'accepted_value': {}}
+Process P3: Received ACCEPT from P5
+Process P3: ACCEPTED ballot 3, value (full blockchain not just block): '{'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': 'Zh9hV3GpbFNCTKuY', 'hash_result': '09762baa5895bead94a95fd9f43deedbc41d01da2d7f1959b75fc1a0254dd1a1', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'eaf50615b70aba26c0de874b10a7595e4f8029cfaa0f9b58961a8f282fcbb45b', 'nonce': 'OEtJ7TFYLtmXwPdm', 'hash_result': '4a6b9266060c9f9c4d5e382a31c7e97d1c479975910cac518ffc1493d6d4eaa4', 'tentative': True}, {'sender_id': 'P5', 'receiver_id': 'P1', 'amount': 10, 'hash_pointer': 'c7911ba0c52bc1ac095d3ea02bc7d0707dda207a12087eedfd0ad2b0eb8123de', 'nonce': 'YxO1q6qkezqL88PX', 'hash_result': '3b369357b733724a2e0010a7c3475ccd99e26c9d3af87ddd46f406ee265ecdc0', 'tentative': True}]}'
+Process P3: Updating blockchain from length 2 to 3
+✓ Rebuilt balances from 3 blocks
+Process P3: Blockchain updated! New length: 3
+✓ Blockchain saved to p3.json
+Sending response: {'type': 'ACCEPT_ACCEPTED', 'from': 'P3', 'ballot_num': 3, 'accepted_value': {'blockchain': [{'sender_id': 'P1', 'receiver_id': 'P2', 'amount': 10, 'hash_pointer': '0000000000000000000000000000000000000000000000000000000000000000', 'nonce': 'Zh9hV3GpbFNCTKuY', 'hash_result': '09762baa5895bead94a95fd9f43deedbc41d01da2d7f1959b75fc1a0254dd1a1', 'tentative': False}, {'sender_id': 'P2', 'receiver_id': 'P3', 'amount': 10, 'hash_pointer': 'eaf50615b70aba26c0de874b10a7595e4f8029cfaa0f9b58961a8f282fcbb45b', 'nonce': 'OEtJ7TFYLtmXwPdm', 'hash_result': '4a6b9266060c9f9c4d5e382a31c7e97d1c479975910cac518ffc1493d6d4eaa4', 'tentative': True}, {'sender_id': 'P5', 'receiver_id': 'P1', 'amount': 10, 'hash_pointer': 'c7911ba0c52bc1ac095d3ea02bc7d0707dda207a12087eedfd0ad2b0eb8123de', 'nonce': 'YxO1q6qkezqL88PX', 'hash_result': '3b369357b733724a2e0010a7c3475ccd99e26c9d3af87ddd46f406ee265ecdc0', 'tentative': True}]}}
+Process P3: Received DECISION from P5
+Process P3: Processing DECISION from P5, ballot 3
+Process P3: Updating blockchain from length 3 to 3
+✓ Rebuilt balances from 3 blocks
+Process P3: Blockchain updated! New length: 3
+✓ Blockchain saved to p3.json
+Process P3: Resetting proposer state and cancelling tasks
+Process P3: Proposer reset complete
+Queue is empty, returning

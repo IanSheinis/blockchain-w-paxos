@@ -207,6 +207,7 @@ class proposer:
         writer.close()
         await writer.wait_closed()
         
+        await asyncio.sleep(config.DELAY) # Wait a certain time
         # Parse response
         if response_data:
             response = json.loads(response_data.decode('utf-8'))
@@ -355,6 +356,7 @@ class proposer:
             writer.close()
             await writer.wait_closed()
         
+            await asyncio.sleep(config.DELAY) # Wait a certain time
             # Parse response
             if response_data:
                 response = json.loads(response_data.decode('utf-8'))
@@ -564,7 +566,7 @@ class acceptor:
             self.AcceptNum = bal
             self.AcceptVal = val
         
-            print(f"Process {self.process_id}: ACCEPTED ballot {bal}, value '{val}'")
+            print(f"Process {self.process_id}: ACCEPTED ballot {bal}, value (full blockchain not just block): '{val}'")
         
             return {
                 paxos_enum.json.TYPE.value: paxos_enum.acceptor.ACCEPT_ACCEPTED.value,
@@ -651,7 +653,7 @@ class paxos:
             
             print(f"Process {self.process}: Received {message_type} from {from_process}")
             
-            ### Acceptor ###
+            ############## Acceptor ####################
             # Route to appropriate handler
             depth = self.blockchain.length() if self.blockchain else 0
             if message_type == paxos_enum.proposer.PREPARE.value:
@@ -677,7 +679,7 @@ class paxos:
                 await self.handle_decision(message)
                 # No response for DECISION messages
             
-            ### Master ###
+            ################3 Master ###############
 
             elif message_type == transaction.enum_transaction.TRANSACTION.value:
                 trans_dict = message.get(transaction.enum_transaction.TRANSACTION.value)
@@ -707,6 +709,19 @@ class paxos:
 
                 writer.write((json.dumps(response) + '\n').encode('utf-8'))
                 await writer.drain()
+
+            elif message_type == transaction.enum_transaction.QUEUE.value:
+                queue_list = [transaction.asdict(t) for t in self.transaction_queue]
+                response = {
+                    "from": self.process,
+                    "queue": queue_list
+                }
+                writer.write((json.dumps(response) + '\n').encode('utf-8'))
+                await writer.drain()
+            elif message_type == transaction.enum_transaction.QUEUE_START.value:
+                await self.handle_transaction()
+            elif message_type == transaction.enum_transaction.QUEUE_DELETE.value:
+                self.transaction_queue.clear()
             else:
                 raise ValueError(f"Process {self.process}: Unknown message type: {message}")
         
@@ -755,15 +770,15 @@ class paxos:
         while True:  # Loop for retries
             async with self.proposer_lock:
                 if not self.transaction_queue:
+                    print('Queue is empty, returning')
                     return  # Exit if queue is empty (no more work)
                 
                 success = await self.propose_block()
                 if success:
-                    return  
-                
+                    print('Success in proposing loop')
             # Retry logic outside the lock to avoid re-acquiring while held
             sleep_time = config.DELAY * 5 + config.DELAY * 3 * random.random() # Random sleep time to ensure termination of paxos
-            print(f"{self.process} failed proposing, will wait {sleep_time}\nCurrent transaction queue {self.transaction_queue}")
+            print(f"{self.process} out of loop, will wait {sleep_time}\nCurrent transaction queue {self.transaction_queue}")
             await asyncio.sleep(sleep_time)
 
 
@@ -787,8 +802,9 @@ class paxos:
         success = await self.proposer.prepare(transaction, self.blockchain)
         
         if success:
-            print(f"Process {self.process}: Block proposal succeeded!")
-            self.transaction_queue.popleft() # Remove transaction
+            print(f"Process {self.process}: Block proposal succeeded! ✅✅✅")
+            if self.transaction_queue:
+                self.transaction_queue.popleft() # Remove transaction
             accepted_dict = self.proposer.acceptVal
             if not accepted_dict: 
                 raise ValueError('AcceptVal is none')
@@ -798,7 +814,7 @@ class paxos:
             self.update_blockchain(accepted_block, tentative=False)
             await self.reset_all()
         else:
-            print(f"Process {self.process}: Block proposal failed")
+            print(f"Process {self.process}: Block proposal failed ❌❌❌")
         
         return success
 

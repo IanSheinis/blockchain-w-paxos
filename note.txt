@@ -1,0 +1,7 @@
+Make logs way clearer
+Fix queue retry logic
+Make paxos send blocks instead of whole blockchain
+Make every block have tentative and decision
+*Make recovery algorithm
+*Make each block hold tentative and decision
+*Make make stop and make kill_ports together

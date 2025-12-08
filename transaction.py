@@ -18,6 +18,9 @@ class enum_transaction(Enum):
     FIX_PROCESS = 'fix_process'
     PRINT_BLOCKCHAIN = 'print_blockchain'
     PRINT_BALANCE = 'print_balance'
+    QUEUE = 'queue'
+    QUEUE_START = 'queue_start'
+    QUEUE_DELETE = 'queue_delete'
     TYPE = 'type'
     
 class master:
@@ -51,38 +54,24 @@ class master:
         except Exception as e:
             print(f"Master: Error sending to {process}: {e}")
 
-    async def _send_with_response(self, process: str, msg_dict:dict) -> dict:
-        """
-        Send messages with response
-        """
+    async def _send_with_response(self, process: str, msg_dict: dict) -> dict:
         try:
             port = config.PORT_NUMBERS.get(process)
-        
-            # Connect with timeout
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection('localhost', port),
                 timeout=1.0
             )
-        
             msg_dict['from'] = 'master'
             writer.write((json.dumps(msg_dict) + '\n').encode('utf-8'))
             await writer.drain()
-        
-            # Close connection (no response expected)
-            writer.close()
-            await writer.wait_closed()
-        
             print(f"Master: Sent msg to process {process}: {msg_dict}")
-
             response_data = await asyncio.wait_for(
                 reader.readline(),
                 timeout=config.DELAY + 1
             )
-
             # Close connection
             writer.close()
             await writer.wait_closed()
-        
             # Parse response
             if response_data:
                 response = json.loads(response_data.decode('utf-8'))
@@ -90,18 +79,12 @@ class master:
                     raise ValueError(f'process {process} should respond with dict')
                 return response
             else:
-                # Connection closed without response
-                print (f"Master did not receive response from: {process}")
-                return {
-                    'from' : process,
-                    'empty' : True
-                }
-        
+                print(f"Master did not receive response from: {process}")
+                return {'from': process, 'empty': True}
         except asyncio.TimeoutError:
             raise ValueError(f"Master: Timed out in sending to {process}")
-    
         except Exception as e:
-            raise ValueError(f"Master: Error sending to {process}: {e}") 
+            raise ValueError(f"Master: Error sending to {process}: {e}")
 
     async def moneyTransfer(self, debit_node, credit_node, amount):
         """
@@ -176,6 +159,7 @@ class master:
         if not blockchain:
             raise ValueError(f"Master: {process} did not have blockchain in returned dict")
     
+        # TODO print tentative also
         print(f"Blockchain for process {process} is:")
         print(json.dumps(blockchain, indent=2))
 
@@ -214,9 +198,9 @@ class master:
                 if not isinstance(result, dict):
                     raise ValueError(f"Master: Non-dict response in accept from {from_process}")
                 
-                balance = enum_transaction.PRINT_BALANCE.value
-                if not balance:
-                    raise ValueError(f"Master: ${from_process} did not have print_balance")
+                balance = result.get(enum_transaction.PRINT_BALANCE.value)
+                if balance is None:
+                    raise ValueError(f"Master: {from_process} did not have print_balance")
                 blockchain_list.append((from_process, balance))
 
             except Exception as e:
@@ -224,7 +208,53 @@ class master:
     
         print(f"Printing all balances for each process")
         for p,b in blockchain_list:
-            print(f"{p}: {b}")
+            print(f"Bank account for Process {p}: {b}")
+
+    async def queue(self, process: str):
+        """
+        Get and print the queue of a single process
+        """
+        if process not in config.CORRECT_PROCESS_NAMES:
+            print(f"Invalid process name. Valid names: {config.CORRECT_PROCESS_NAMES}")
+            return
+        print(f"Master: requesting queue from {process}")
+        result = await self._send_with_response(process, {
+        enum_transaction.TYPE.value: enum_transaction.QUEUE.value,
+        })
+        empty = result.get('empty')
+        if empty:
+            print(f"{process} gave no response for queue")
+            return
+        queue_data = result.get(enum_transaction.QUEUE.value)
+        if queue_data is None:
+            raise ValueError(f"Master: {process} did not have queue in returned dict")
+        print(f"Queue for process {process}:")
+        print(json.dumps(queue_data, indent=2))
+
+    async def queue_start(self, process: str):
+        """
+        Start back up the queue of a single process (No return msg)
+        """
+        if process not in config.CORRECT_PROCESS_NAMES:
+            print(f"Invalid process name. Valid names: {config.CORRECT_PROCESS_NAMES}")
+            return
+        print(f"Master: sending queue_start to {process}")
+        await self._send(process, {
+            enum_transaction.TYPE.value: enum_transaction.QUEUE_START.value,
+        })
+
+    async def queue_delete(self, process: str):
+        """
+        Delete the queue of a single process (No return msg)
+        """
+        if process not in config.CORRECT_PROCESS_NAMES:
+            print(f"Invalid process name. Valid names: {config.CORRECT_PROCESS_NAMES}")
+            return
+        print(f"Master: sending queue_delete to {process}")
+        await self._send(process, {
+            enum_transaction.TYPE.value: enum_transaction.QUEUE_DELETE.value,
+        })
+        print(f"Master: Sent queue_delete to {process}")
 
     
 

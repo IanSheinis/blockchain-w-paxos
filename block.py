@@ -184,7 +184,7 @@ class Block:
             f"prev_block's address: {id(self.prev_block)}\n"
             f"hash_pointer: {self.hash_pointer}\n"
             f"nonce: {self.nonce}\n"
-            f"hash w/ nonce: {self.hash_result}"
+            f"hash w/ nonce: {self.hash_result}\n"
             f"☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐☐\n"
         )
     

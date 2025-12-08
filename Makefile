@@ -20,11 +20,11 @@ help:
 start:
 	@mkdir -p logs
 	@echo "Starting all processes..."
-	$(PYTHON) p1.py > logs/p1.log 2>&1 & echo $$! > .p1.pid
-	$(PYTHON) p2.py > logs/p2.log 2>&1 & echo $$! > .p2.pid
-	$(PYTHON) p3.py > logs/p3.log 2>&1 & echo $$! > .p3.pid
-	$(PYTHON) p4.py > logs/p4.log 2>&1 & echo $$! > .p4.pid
-	$(PYTHON) p5.py > logs/p5.log 2>&1 & echo $$! > .p5.pid
+	$(PYTHON) -u p1.py > logs/p1.log 2>&1 & echo $$! > .p1.pid
+	$(PYTHON) -u p2.py > logs/p2.log 2>&1 & echo $$! > .p2.pid
+	$(PYTHON) -u p3.py > logs/p3.log 2>&1 & echo $$! > .p3.pid
+	$(PYTHON) -u p4.py > logs/p4.log 2>&1 & echo $$! > .p4.pid
+	$(PYTHON) -u p5.py > logs/p5.log 2>&1 & echo $$! > .p5.pid
 	@sleep 2
 	@echo "✅ All processes started"
 	@echo "View logs: tail -f logs/p1.log"
@@ -33,7 +33,7 @@ start:
 	@$(PYTHON) master.py
 
 # Stop all processes
-stop:
+stop: kill_ports
 	@echo "Stopping all processes..."
 	@-kill `cat .p1.pid` 2>/dev/null && rm .p1.pid && echo "P1 stopped" || true
 	@-kill `cat .p2.pid` 2>/dev/null && rm .p2.pid && echo "P2 stopped" || true
@@ -42,21 +42,9 @@ stop:
 	@-kill `cat .p5.pid` 2>/dev/null && rm .p5.pid && echo "P5 stopped" || true
 	@echo "✅ All processes stopped"
 
-# Individual processes (foreground)
-p1:
-	@$(PYTHON) p1.py
-
-p2:
-	@$(PYTHON) p2.py
-
-p3:
-	@$(PYTHON) p3.py
-
-p4:
-	@$(PYTHON) p4.py
-
-p5:
-	@$(PYTHON) p5.py
+kill_ports:
+	@for port in {9995..10000}; do lsof -ti :$$port | xargs kill -9 2>/dev/null || true; done
+	@echo "✅ Ports 9995-10000 killed"
 
 # Clean blockchain files
 clean: stop

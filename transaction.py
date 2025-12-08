@@ -105,7 +105,7 @@ class master:
         enum_transaction.TRANSACTION.value: asdict(transaction)
         })
     
-        print(f"Master: Sent transaction ${transaction}")
+        print(f"Master: Sent transaction {transaction}")
 
     async def fail_process(self, process):
         """

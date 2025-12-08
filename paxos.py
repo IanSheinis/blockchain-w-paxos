@@ -40,13 +40,17 @@ class paxos_enum():
         ACCEPTED_VALUE = 'accepted_value'
         PROMISED_BALLOT = 'promised_ballot' # What acceptor sends back
         DEPTH = 'depth' #block depth
+        RECOVERY = 'recovery'
 
 class proposer:
     # Prepare variables
     ballotNum: int # If -1 then it is not currently trying to be leader
     acceptNum: int
     acceptVal: dict
-    def __init__(self, process, external_process) -> None:
+    reset: bool # Check if state is clean for recovery algorithm
+    def __init__(self, process, external_process, outer: paxos) -> None:
+        self.outer = outer
+        self.reset = True
         self.process_id: str = process
         self.external_process_id: list[str] = external_process
         self.ballotNum = -1
@@ -60,6 +64,10 @@ class proposer:
         Phase 1: Send PREPARE to all acceptors, wait for majority PROMISE
         Returns as soon as majority is reached (doesn't wait for all)
         """
+        self.reset = False # Initiating algorithms now
+        async with self.outer.reset_condition:
+            self.outer.reset_condition.notify_all()
+
         self.ballotNum += 1
     
         print(f"Process {self.process_id}: Starting PREPARE with ballot {self.ballotNum}")
@@ -502,6 +510,7 @@ class proposer:
         self.ballotNum = -1
         self.acceptNum = -1
         self.acceptVal = {}
+        self.reset = True
         
         print(f"Process {self.process_id}: Proposer reset complete")
 
@@ -511,13 +520,16 @@ class acceptor:
     AcceptNum: int
     AcceptVal: dict
     process_id: str
-    def __init__(self, process) -> None:
+    reset: bool # Check if state is clean for recovery algorithm
+    def __init__(self, process, outer: paxos) -> None:
+        self.outer = outer
         self.process_id = process
         self.BallotNum = -1
         self.AcceptVal = {}
         self.AcceptNum = -1
+        self.reset = True
 
-    def prepare(self, response: dict, depth: int) -> dict:
+    async def prepare(self, response: dict, depth: int) -> dict:
         """
         Upon receive ("prepare", bal) from i
         if bal > BallotNum then
@@ -543,6 +555,9 @@ class acceptor:
             raise ValueError(f"{self.process_id} got no depth from {process_from}")
         print(f"Current acceptor.prepare\nbal: {bal}\nself.BallotNum: {self.BallotNum}\nproposer_depth: {proposer_depth}\ndepth: {depth}")
         if bal > self.BallotNum and proposer_depth > depth:
+            self.reset = False # Transaction can happen from here
+            async with self.outer.reset_condition:
+                self.outer.reset_condition.notify_all()
             # Accept the prepare - send PROMISE
             self.BallotNum = bal
         
@@ -562,7 +577,7 @@ class acceptor:
                 paxos_enum.json.PROMISED_BALLOT.value: self.BallotNum
             }
         
-    def accept(self, response: dict, depth: int) -> dict:
+    async def accept(self, response: dict, depth: int) -> dict:
         """
         Upon receive ("accept", bal, val) from i
         if bal >= BallotNum then
@@ -624,6 +639,7 @@ class acceptor:
         self.BallotNum = -1
         self.AcceptNum = -1
         self.AcceptVal = {}
+        self.reset = True
         
 class paxos:
     def __init__(self, process_name: str):
@@ -631,8 +647,8 @@ class paxos:
             raise ValueError('Incorrect process name')
         self.process = process_name
         self.external_processes = [process for process in config.CORRECT_PROCESS_NAMES if process != self.process]
-        self.proposer = proposer(self.process, self.external_processes)
-        self.acceptor = acceptor(self.process)
+        self.proposer = proposer(self.process, self.external_processes, outer=self)
+        self.acceptor = acceptor(self.process, outer=self)
         self.filename = config.CORRECT_FILE_NAMES_DICT.get(self.process)
         if not self.filename: raise ValueError("self.filename is None")
         self.blockchain: block.Block | None = block.Block.load_from_json(self.filename)  # Current blockchain
@@ -640,11 +656,84 @@ class paxos:
         self.decision_lock = asyncio.Lock()  # Prevent concurrent decision processing
         self.proposer_lock = asyncio.Lock()  # Prevent concurrent decision processing
         self.transaction_queue = deque()
+        self.reset_condition = asyncio.Condition()
         
+    async def reboot(self):
+        if len(sys.argv) > 2:
+            raise ValueError('There should only be at max one argument')
+        elif len(sys.argv) == 2:
+            if sys.argv[1] == 'fix':
+                print('========= Initiating recovery algorithm ============')
+                await self.recovery_algorithm()
+            else:
+                raise ValueError(f'Unknown argument: {sys.argv[1]}')
+        else:
+            print("======== First time start (No recovery algorithm will be ran) ==========")
+
+    async def recovery_algorithm(self):
+        """
+        FAIL/ recovery, make this process in limbo while waiting, 
+        sends messages to all processes asking for their blockchain
+        first process that does not have any acceptval or ballot in both proposer and acceptor (guarantees safety)
+        will send back its block chain for this process to update, will ignore every future response from other processes
+        """
+
+        print(f"{self.process}: sending recovery msg to all processes")
+        tasks = {}
+        for process in self.external_processes:
+            task = asyncio.create_task(
+                self._send_with_response(process,
+                            { 
+                                paxos_enum.json.TYPE.value: paxos_enum.json.RECOVERY.value,
+
+                            },
+                            ), name= process
+            )
+            tasks[process] = task
+
+        timeout = 0 # If timeout is 4 abort
+        for coro in asyncio.as_completed(tasks.values()):
+            try:
+                result = await coro
+                from_process = result.get('from')
+                if not from_process:
+                    raise ValueError('No from_process in recovery algorithm')
+                empty = result.get('empty')
+                if empty:
+                    print(f'Could not connect to {from_process}, continuing recovery algorithm')
+                    continue
+
+                blockchain_dict = result.get('blockchain')
+                new_blockchain = block.Block._blockchain_from_json(blockchain_dict)
+                if not new_blockchain:
+                    print(f"No blockchain has been found from {from_process}, continuing recovery algorithm")
+                    continue
+                print(f"blockchain found, initiating recovery for blockchain: {new_blockchain}")
+                self.update_blockchain(new_blockchain)
+                return
+            
+            except ValueError:
+                task = cast(asyncio.Task, coro)
+                print(f"{self.process}: Tried connecting to {task.get_name()}, but timed out, continuing algorithm")
+                timeout += 1
+            except OSError as e:
+                task = cast(asyncio.Task, coro)
+                print(f"{self.process}: Tried connecting to {task.get_name()}, but it is down, continuing recovery algorithm")
+
+            except Exception as e:
+                raise ValueError(f"{self.process}: Exception in accept: {e}")
+        
+        if timeout == 4:
+            print("All processes timedout when trying to retrieve their blockchain, shutting down process")
+            sys.exit(0)
+        print("All other processes are down or do not have blockchain, starting normally")
+
+
     async def start_server(self):
         """
         Start server to listen for incoming Paxos messages
         """
+        await self.reboot()
         port = config.PORT_NUMBERS.get(self.process)
         
         if not port:
@@ -688,7 +777,7 @@ class paxos:
             # Route to appropriate handler
             depth = self.blockchain.length() if self.blockchain else 0
             if message_type == paxos_enum.proposer.PREPARE.value:
-                response = self.acceptor.prepare(message, depth)
+                response = await self.acceptor.prepare(message, depth)
                 
                 # Need to send response back
                 writer.write((json.dumps(response) + '\n').encode('utf-8'))
@@ -696,7 +785,7 @@ class paxos:
                 await writer.drain()
             
             elif message_type == paxos_enum.proposer.ACCEPT.value:
-                response = self.acceptor.accept(message, depth)
+                response = await self.acceptor.accept(message, depth)
                 
                 temp_block = block.Block._blockchain_from_json(self.acceptor.AcceptVal)
                 if not temp_block:
@@ -710,7 +799,9 @@ class paxos:
                 await self.handle_decision(message)
                 # No response for DECISION messages
             
-            ################3 Master ###############
+            elif message_type == paxos_enum.json.RECOVERY.value:
+                await self.handle_recovery(message, writer)
+            ################ Master ###############
 
             elif message_type == transaction.enum_transaction.TRANSACTION.value:
                 trans_dict = message.get(transaction.enum_transaction.TRANSACTION.value)
@@ -773,6 +864,32 @@ class paxos:
             writer.close()
             await writer.wait_closed()
 
+    async def handle_recovery(self, message: dict, writer):
+        """
+        Only send back blockchain when proposer and acceptor values are clean (initially started with), this is to ensure safety (not sending a blockchain right before a decision)
+        """
+        from_process = message.get(paxos_enum.json.FROM.value)
+        if not from_process:
+            raise ValueError('Did not receive from_process in handle_recovery')
+
+        async with self.reset_condition:
+            while not (self.proposer.reset and self.acceptor.reset):
+                await self.reset_condition.wait()
+
+        # Now it's safe (both resets are True) - proceed to send
+        blockchain_dict = None
+        if self.blockchain:
+            blockchain_dict = self.blockchain.to_json()
+
+        response = {
+            paxos_enum.json.FROM.value: self.process,
+            'blockchain': blockchain_dict
+        }
+        writer.write((json.dumps(response) + '\n').encode('utf-8'))
+        print(f"Sending response: {response}")
+        await writer.drain()
+
+        
     async def handle_decision(self, message: dict):
         """
         Process DECISION message - update local blockchain
@@ -886,3 +1003,41 @@ class paxos:
     async def reset_all(self):
         await self.proposer.reset_all()
         self.acceptor.reset_all()
+
+        async with self.reset_condition:
+            self.reset_condition.notify_all()
+
+    async def _send_with_response(self, process: str, msg_dict: dict) -> dict:
+        try:
+            port = config.PORT_NUMBERS.get(process)
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection('localhost', port),
+                timeout=1.0
+            )
+            msg_dict['from'] = self.process
+            writer.write((json.dumps(msg_dict) + '\n').encode('utf-8'))
+            await writer.drain()
+            print(f"{self.process}: Sent msg to process {process}: {msg_dict}")
+            response_data = await asyncio.wait_for(
+                reader.readline(),
+                timeout= config.DELAY * 10 # This is only for recovery algorithm, if this actually happens it's cooked
+            )
+            # Close connection
+            writer.close()
+            await writer.wait_closed()
+            # Parse response
+            if response_data:
+                response = json.loads(response_data.decode('utf-8'))
+                if not isinstance(response, dict):
+                    raise ValueError(f'process {process} should respond with dict')
+                return response
+            else:
+                print(f"{self.process} did not receive response from: {process}")
+                return {'from': process, 'empty': True}
+        except asyncio.TimeoutError:
+            raise ValueError(f"{self.process}: Timed out in sending to {process}")
+        except OSError as e:
+            print(f"Failed to connect to {process}, probably crashed")
+            return {'from': process, 'empty': True}
+        except Exception as e:
+            raise ValueError(f"{self.process}: Error sending to {process}: {e}")

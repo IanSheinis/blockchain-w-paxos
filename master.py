@@ -106,7 +106,7 @@ async def main():
                 
                 print(f"\nStarting process back up for {process}...")
                 subprocess.Popen(
-                    f'python -u {process.lower()}.py > logs/{process.lower()}.log 2>&1 &',
+                    f'python -u {process.lower()}.py fix > logs/{process.lower()}.log 2>&1 &',
                     shell=True
                 )
                 print()

@@ -3,6 +3,8 @@
 Master process - sends commands to blockchain nodes
 Run with: python master.py
 """
+import config
+import subprocess
 import asyncio
 import sys
 from transaction import master
@@ -60,12 +62,12 @@ async def main():
                 print("Transaction sent!\n")
            
             elif command == "balance":
-                if len(parts) != 1:
-                    print("Usage: balance")
+                if len(parts) != 2:
+                    print("Usage: balance <process>")
                     continue
-               
+                process = parts[1].upper()
                 print(f"\nRequesting balance from all processes...")
-                await m.printBalance()
+                await m.printBalance(process)
                 print()
            
             elif command == "blockchain":
@@ -94,8 +96,19 @@ async def main():
                     continue
                
                 process = parts[1].upper()
-                print(f"\nFixing process {process}...")
-                await m.fix_process(process)
+                if process not in config.CORRECT_PROCESS_NAMES:
+                    print(f"Process must be correct name: {process}")
+                    continue
+
+                if is_script_running(f'{process.lower()}.py'):
+                    print(f"\nProcess {process} is already running")
+                    continue
+                
+                print(f"\nStarting process back up for {process}...")
+                subprocess.Popen(
+                    f'python -u {process.lower()}.py > logs/{process.lower()}.log 2>&1 &',
+                    shell=True
+                )
                 print()
 
             elif command == "queue":
@@ -127,7 +140,7 @@ async def main():
                 print(f"\nDeleting queue for {process}...")
                 await m.queue_delete(process)
                 print()
-           
+
             else:
                 print(f"Unknown command: {command}")
                 print("Type 'quit' to exit")
@@ -140,6 +153,15 @@ async def main():
             print(f"Error: {e}")
             import traceback
             traceback.print_exc()
+
+def is_script_running(script_name):
+    result = subprocess.run(
+        ['pgrep', '-f', script_name],
+        capture_output=True,
+        text=True
+    )
+    return result.returncode == 0
+
 if __name__ == "__main__":
     try:
         asyncio.run(main())

@@ -163,52 +163,31 @@ class master:
         print(f"Blockchain for process {process} is:")
         print(json.dumps(blockchain, indent=2))
 
-    async def printBalance(self):
+    async def printBalance(self, process):
         """
         printBalance: This command should print the balance of all 5 accounts on that node.
         """
 
-        print(f"Master: sending printBalance to all processes")
-        tasks = {}
-        for process in config.CORRECT_PROCESS_NAMES:
-            task = asyncio.create_task(
-                self._send_with_response(process,
-                            { 
-                                enum_transaction.TYPE.value: enum_transaction.PRINT_BALANCE.value,
-
-                            }
-                            )
-            )
-            tasks[process] = task
+        if process not in config.CORRECT_PROCESS_NAMES:
+            raise ValueError(f'Process needs to have correct file name {config.CORRECT_PROCESS_NAMES}')
     
-        blockchain_list = []
-        for coro in asyncio.as_completed(tasks.values()):
-            try:
-                result = await coro
-            
-                from_process = result.get('from', '')
-                if not from_process:
-                    raise ValueError(f"Master: No 'from' in accept response")
-            
-                empty = result.get('empty')
-                if empty:
-                    blockchain_list.append((from_process, 'No response'))
-                    continue
-                # Check if it's a valid dict
-                if not isinstance(result, dict):
-                    raise ValueError(f"Master: Non-dict response in accept from {from_process}")
-                
-                balance = result.get(enum_transaction.PRINT_BALANCE.value)
-                if balance is None:
-                    raise ValueError(f"Master: {from_process} did not have print_balance")
-                blockchain_list.append((from_process, balance))
-
-            except Exception as e:
-                raise ValueError(f"Master: Exception in accept: {e}")
+        print(f"Master: sending printBalance to process {process}")
     
-        print(f"Printing all balances for each process")
-        for p,b in blockchain_list:
-            print(f"Bank account for Process {p}: {b}")
+        result = await self._send_with_response(process, {
+            enum_transaction.TYPE.value: enum_transaction.PRINT_BALANCE.value,
+        })
+    
+        empty = result.get('empty')
+        if empty:
+            print(f"{process} gave no response for printBalance")
+            return
+    
+        blockchain = result.get(enum_transaction.PRINT_BALANCE.value)
+        if not blockchain:
+            raise ValueError(f"Master: {process} did not have balance in returned dict")
+    
+        print(f"Balance for process {process} is:")
+        print(json.dumps(blockchain, indent=2))
 
     async def queue(self, process: str):
         """

@@ -15,6 +15,7 @@ class Block_Json:
     hash_pointer: str
     nonce: str
     hash_result: str
+    tentative: bool
     
     @classmethod
     def from_block(cls, block: Block) -> Block_Json:
@@ -25,7 +26,8 @@ class Block_Json:
             amount=block.transaction.amount,
             hash_pointer=block.hash_pointer,
             nonce=block.nonce,
-            hash_result=block.hash_result
+            hash_result=block.hash_result,
+            tentative = block.tentative
         )
     
     @classmethod
@@ -41,7 +43,8 @@ class Block_Json:
             prev_block=prev_block,
             hash_pointer=self.hash_pointer,
             nonce=self.nonce,
-            hash_result=self.hash_result
+            hash_result=self.hash_result,
+            tentative = self.tentative
         )
     
     def to_dict(self) -> dict:
@@ -51,7 +54,7 @@ class Block_Json:
 class Block:
     @classmethod
     def _restore_block(cls, transaction: Transaction, prev_block: Block | None,
-                      hash_pointer: str, nonce: str, hash_result: str) -> Block:
+                      hash_pointer: str, nonce: str, hash_result: str, tentative: bool) -> Block:
         """Helper to restore a single block"""
         block = cls.__new__(cls)
         block.transaction = transaction
@@ -59,6 +62,7 @@ class Block:
         block.hash_pointer = hash_pointer
         block.nonce = nonce  
         block.hash_result = hash_result
+        block.tentative = tentative # if the node is a participant, when it receives a block from the leader it needs to write the block to the file and tag is as tentative.
         return block
     
     @classmethod
@@ -71,9 +75,6 @@ class Block:
         if not blockchain_list:
             return None
         
-        tentative = blockchain_dict.get("tentative", False) # Default to false, need to be careful of this
-        if tentative == None:
-            raise ValueError("No tentative")
         current: Block | None = None
         
         for block_dict in blockchain_list:
@@ -82,8 +83,7 @@ class Block:
             current = block
         if not current:
             return None
-        if tentative:
-            return current.prev_block
+        current.validate_tentative()
         return current
     
     @classmethod
@@ -100,7 +100,6 @@ class Block:
         
             if tail:
                 print(f"✓ Loaded {len(data['blockchain'])} blocks from {filename}")
-        
             return tail
         
         except FileNotFoundError:
@@ -109,24 +108,36 @@ class Block:
         except json.JSONDecodeError as e:
             raise ValueError(f"✗ Invalid JSON in {filename}: {e}")
 
-    def write_to_json(self, filename: str, tentative: bool = False):
+    def tentative_to_decide(self):
+        # Change to decided
+        self.tentative = False
+
+    def validate_tentative(self) -> bool:
+        """Ensure only the tail (if any) is tentative"""
+        if self is None:
+            return True
+        # Check all non-tail blocks
+        current = self.prev_block
+        while current:
+            if current.tentative:
+                raise ValueError("Non-tail block is tentative")
+            current = current.prev_block
+        return True  # Tail (self) can be True or False
+    def write_to_json(self, filename: str):
         """Write blockchain to JSON file"""
         if filename not in config.CORRECT_FILE_NAMES:
             raise ValueError(f"Filename must be one of: p1.json, p2.json, p3.json, p4.json, p5.json. Got: {filename}")
     
         data = self.to_json()
-        if tentative: # if the node is a participant, when it receives a block from the leader it needs to write the block to the file and tag is as tentative
-            data["tentative"] = True
-        else:
-            data["tentative"] = False
         with open(filename, 'w') as f:
             json.dump(data, f, indent=2)
 
         print(f"✓ Blockchain saved to {filename}")
     
-    def __init__(self, transaction: Transaction, prev_block: Block | None) -> None:
+    def __init__(self, transaction: Transaction, prev_block: Block | None, tentative: bool = False) -> None:
         self.transaction = transaction
         self.prev_block = prev_block
+        self.tentative = tentative
         self.hash_pointer = self.generate_hash()
         self.nonce, self.hash_result = self.generate_nonce()
         # Print when block is created

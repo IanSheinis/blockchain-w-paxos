@@ -1,3 +1,5 @@
+from typing import cast 
+import sys
 import random
 import json
 from collections import deque
@@ -74,7 +76,8 @@ class proposer:
         tasks = {}
         for process in self.external_process_id:
             task = asyncio.create_task(
-                self._send_prepare_to_process(process, self.ballotNum, depth)
+                self._send_prepare_to_process(process, self.ballotNum, depth),
+                name = process
             )
             tasks[process] = task
             self.active_tasks.add(task)
@@ -88,8 +91,9 @@ class proposer:
         # Use as_completed to process responses as they arrive
         for coro in asyncio.as_completed(tasks.values()):
             try:
-                result = await coro
                 completed += 1
+                result = await coro
+
 
                 from_process = result.get(paxos_enum.json.FROM.value, '')
                 if not from_process:
@@ -102,7 +106,7 @@ class proposer:
                         print(f"Process {self.process_id}: Got promise #{len(promises)} from {from_process}")
                 
                         if len(promises) >= majority_needed:
-                            print(f"Process {self.process_id}: Got majority ({len(promises)}/{majority_needed})!")
+                            print(f"Process {self.process_id}: Got majority ({len(promises) + 1}/ {len(config.CORRECT_PROCESS_NAMES)})!")
                             break
 
                     elif result_type == paxos_enum.acceptor.PREPARE_REJECT.value:
@@ -112,7 +116,7 @@ class proposer:
                         max_seen_ballot = max(promise_ballot, max_seen_ballot)
 
                     elif result_type == paxos_enum.acceptor.NO_RESPONSE.value:
-                        print(f"Process {self.process_id} No response from ${from_process} in accept")
+                        print(f"Process {self.process_id} No response from {from_process} in accept")
 
                     else:
                         raise ValueError(f"Got unexpected response from {from_process}: {result_type}")
@@ -127,6 +131,15 @@ class proposer:
                     print(f"Process {self.process_id}: Can't reach majority, stopping early")
                     break
         
+            except OSError as e:
+                task = cast(asyncio.Task, coro)
+                print(f"{self.process_id}: Tried connecting to {task.get_name()}, but it is down")
+
+                # Check if it's impossible to get majority (same as above)
+                remaining = total - completed
+                if len(promises) + remaining < majority_needed:
+                    print(f"Process {self.process_id}: Can't reach majority, stopping early")
+                    break
             except Exception as e:
                 raise ValueError(f"Process {self.process_id}: Exception in prepare: {e}")
     
@@ -163,7 +176,7 @@ class proposer:
             if accept_success: 
                 return accept_success # Bool chain
             else:
-                print(f"{self.process_id} failed to propose accept, new ballot number is: {self.ballotNum}")
+                print(f"{self.process_id}'s proposer prepare phase: Failed to propose accept, new ballot number is: {self.ballotNum}")
                 return False
         else:
             print(f"Process {self.process_id}: PREPARE failed ({len(promises)}/{majority_needed})\n Highest ballot received: {max_seen_ballot}")
@@ -173,52 +186,58 @@ class proposer:
 
 
     async def _send_prepare_to_process(self, process: str, ballot_num: int, depth: int) -> dict:
-        """
-        Send PREPARE to one process and wait for PROMISE response
-        Handles crashes, timeouts, network failures gracefully
-        """
+        try:
+            port = config.PORT_NUMBERS.get(process)
         
-        port = config.PORT_NUMBERS.get(process)
+            # Connect with timeout
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection('localhost', port),
+                timeout=1.0  # 1 second to connect
+            )
         
-        # Connect with timeout
-        reader, writer = await asyncio.wait_for(
-            asyncio.open_connection('localhost', port),
-            timeout=1.0  # 1 second to connect
-        )
+            # Send PREPARE
+            prepare_msg = {
+                paxos_enum.json.TYPE.value: paxos_enum.proposer.PREPARE.value,
+                paxos_enum.json.BALLOT_NUM.value: ballot_num,
+                paxos_enum.json.FROM.value: self.process_id,
+                paxos_enum.json.DEPTH.value: depth
+            }
         
-        # Send PREPARE
-        prepare_msg = {
-            paxos_enum.json.TYPE.value : paxos_enum.proposer.PREPARE.value,
-            paxos_enum.json.BALLOT_NUM.value : ballot_num,
-            paxos_enum.json.FROM.value: self.process_id,
-            paxos_enum.json.DEPTH.value: depth
-        }
+            writer.write((json.dumps(prepare_msg) + '\n').encode('utf-8'))
+            await writer.drain()
         
-        writer.write((json.dumps(prepare_msg) + '\n').encode('utf-8'))
-        await writer.drain()
+            # Wait for PROMISE response with timeout
+            response_data = await asyncio.wait_for(
+                reader.readline(),
+                timeout=config.DELAY + 1
+            )
         
-        # Wait for PROMISE response with timeout
-        response_data = await asyncio.wait_for(
-            reader.readline(),
-            timeout= config.DELAY + 1
-        )
+            # Close connection
+            writer.close()
+            await writer.wait_closed()
         
-        # Close connection
-        writer.close()
-        await writer.wait_closed()
+            await asyncio.sleep(config.DELAY)  # Wait a certain time
         
-        await asyncio.sleep(config.DELAY) # Wait a certain time
-        # Parse response
-        if response_data:
-            response = json.loads(response_data.decode('utf-8'))
-            if not isinstance(response, dict):
-                raise ValueError(f'process {process} should respond with dict')
-            return response
-        else:
-            # Connection closed without response
-            print(f"Process {self.process_id}: No response from {process}")
-            return {paxos_enum.json.TYPE.value:
-                    paxos_enum.acceptor.NO_RESPONSE.value,
+            # Parse response
+            if response_data:
+                response = json.loads(response_data.decode('utf-8'))
+                if not isinstance(response, dict):
+                    raise ValueError(f'process {process} should respond with dict')
+                return response
+            else:
+                # Connection closed without response
+                print(f"Process {self.process_id}: No response from {process}")
+                return {paxos_enum.json.TYPE.value: paxos_enum.acceptor.NO_RESPONSE.value,
+                        paxos_enum.json.FROM.value: process}
+    
+        except asyncio.TimeoutError:
+            print(f"Process {self.process_id}: Timeout from {process} in prepare")
+            return {paxos_enum.json.TYPE.value: paxos_enum.acceptor.NO_RESPONSE.value,
+                    paxos_enum.json.FROM.value: process}
+    
+        except Exception as e:
+            print(f"Process {self.process_id}: Error contacting {process} in prepare")
+            return {paxos_enum.json.TYPE.value: paxos_enum.acceptor.NO_RESPONSE.value,
                     paxos_enum.json.FROM.value: process}
     
         
@@ -256,8 +275,9 @@ class proposer:
         # Use as_completed to process responses as they arrive
         for coro in asyncio.as_completed(tasks.values()):
             try:
-                result = await coro
                 completed += 1
+                result = await coro
+
             
                 from_process = result.get(paxos_enum.json.FROM.value, '')
                 if not from_process:
@@ -276,7 +296,7 @@ class proposer:
                 
                     # Got majority?
                     if len(accepted) >= majority_needed:
-                        print(f"Process {self.process_id}: Got majority accepts ({len(accepted)}/{majority_needed})!")
+                        print(f"Process {self.process_id}: Got majority accepts ({len(accepted) + 1}/ {len(config.CORRECT_PROCESS_NAMES)})!")
                         break
             
                 elif result_type == paxos_enum.acceptor.ACCEPT_REJECT.value:
@@ -285,7 +305,7 @@ class proposer:
                     print(f"Process {self.process_id}: Accept rejected by {from_process}, promised_ballot={promised_ballot}")
 
                 elif result_type == paxos_enum.acceptor.NO_RESPONSE.value:
-                    print(f"Process {self.process_id} No response from ${from_process} in accept")
+                    print(f"Process {self.process_id} No response from {from_process} in accept")
                 else:
                     raise ValueError(f"Got unexpected response from {from_process}: {result_type}")
             
@@ -294,6 +314,17 @@ class proposer:
                 if len(accepted) + remaining < majority_needed:
                     print(f"Process {self.process_id}: Can't reach majority in accept, stopping early")
                     break
+
+            except OSError as e:
+                task = cast(asyncio.Task, coro)
+                print(f"{self.process_id}'s proposer accept phase: Tried connecting to {task.get_name()}, but it is down")
+
+                # Check if it's impossible to get majority (same as above)
+                remaining = total - completed
+                if len(accepted) + remaining < majority_needed:
+                    print(f"Process {self.process_id}: Can't reach majority, stopping early")
+                    break
+
             except Exception as e:
                 raise ValueError(f"Process {self.process_id}: Exception in accept: {e}")
         
@@ -379,7 +410,7 @@ class proposer:
             }
     
         except Exception as e:
-            print(f"Process {self.process_id}: Error contacting {process} in accept: {e}")
+            print(f"Process {self.process_id}: Error contacting {process} in accept")
             return {
                 paxos_enum.json.TYPE.value: paxos_enum.acceptor.NO_RESPONSE.value,
                 paxos_enum.json.FROM.value: process
@@ -709,6 +740,10 @@ class paxos:
 
                 writer.write((json.dumps(response) + '\n').encode('utf-8'))
                 await writer.drain()
+
+            elif message_type == transaction.enum_transaction.FAIL_PROCESS.value:
+                print("Received fail process, shutting down")
+                sys.exit(0)
 
             elif message_type == transaction.enum_transaction.QUEUE.value:
                 queue_list = [transaction.asdict(t) for t in self.transaction_queue]

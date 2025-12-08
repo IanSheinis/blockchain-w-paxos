@@ -119,7 +119,7 @@ class master:
             enum_transaction.TYPE.value: enum_transaction.FAIL_PROCESS.value,
         })
     
-        print(f"Master: Sent fail process to ${process}")
+        print(f"Master: Sent fail process to {process}")
         
     async def fix_process(self, process):
         """

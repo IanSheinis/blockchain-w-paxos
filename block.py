@@ -113,17 +113,16 @@ class Block:
         self.tentative = False
 
     def validate_tentative(self) -> bool:
-        """Ensure only the tail (if any) is tentative by setting any non-tail tentative blocks to False"""
+        """Ensure only the tail (if any) is tentative"""
         if self is None:
             return True
+        # Check all non-tail blocks
         current = self.prev_block
         while current:
-            # For non-tail (current has prev), set to False if tentative
             if current.tentative:
-                current.tentative = False
+                raise ValueError("Non-tail block is tentative")
             current = current.prev_block
-        return True  
-        
+        return True  # Tail (self) can be True or False
     def write_to_json(self, filename: str):
         """Write blockchain to JSON file"""
         if filename not in config.CORRECT_FILE_NAMES:

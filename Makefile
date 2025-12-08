@@ -20,11 +20,11 @@ help:
 start:
 	@mkdir -p logs
 	@echo "Starting all processes..."
-	$(PYTHON) -u p1.py > logs/p1.log 2>&1 & echo $$! > .p1.pid
-	$(PYTHON) -u p2.py > logs/p2.log 2>&1 & echo $$! > .p2.pid
-	$(PYTHON) -u p3.py > logs/p3.log 2>&1 & echo $$! > .p3.pid
-	$(PYTHON) -u p4.py > logs/p4.log 2>&1 & echo $$! > .p4.pid
-	$(PYTHON) -u p5.py > logs/p5.log 2>&1 & echo $$! > .p5.pid
+	$(PYTHON) -u p1.py > logs/p1.log 2>&1 &
+	$(PYTHON) -u p2.py > logs/p2.log 2>&1 &
+	$(PYTHON) -u p3.py > logs/p3.log 2>&1 &
+	$(PYTHON) -u p4.py > logs/p4.log 2>&1 &
+	$(PYTHON) -u p5.py > logs/p5.log 2>&1 &
 	@sleep 2
 	@echo "✅ All processes started"
 	@echo "View logs: tail -f logs/p1.log"

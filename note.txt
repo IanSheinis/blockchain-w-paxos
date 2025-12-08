@@ -1,3 +1,3 @@
 
-*** FAIL/ recovery
+*** FAIL/ recovery, make process in limbo while waiting, can return based on states, where if no acceptval or ballot, then send back and immediately accept
 * After send tentative back in blockchain

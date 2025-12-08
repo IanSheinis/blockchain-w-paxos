@@ -77,6 +77,10 @@ class master:
                 response = json.loads(response_data.decode('utf-8'))
                 if not isinstance(response, dict):
                     raise ValueError(f'process {process} should respond with dict')
+                first = response.get('first')
+                if first:
+                    print(f"Process {process} is still in first time recovery")
+                    return {'from': process, 'empty': True}
                 return response
             else:
                 print(f"Master did not receive response from: {process}")
@@ -165,7 +169,7 @@ class master:
 
     async def printBalance(self, process):
         """
-        printBalance: This command should print the balance of all 5 accounts on that node.
+        printBalance: This command should print the balance a specific node.
         """
 
         if process not in config.CORRECT_PROCESS_NAMES:
@@ -182,12 +186,59 @@ class master:
             print(f"{process} gave no response for printBalance")
             return
     
-        blockchain = result.get(enum_transaction.PRINT_BALANCE.value)
-        if not blockchain:
+        balance = result.get(enum_transaction.PRINT_BALANCE.value)
+        if not balance:
             raise ValueError(f"Master: {process} did not have balance in returned dict")
     
         print(f"Balance for process {process} is:")
-        print(json.dumps(blockchain, indent=2))
+        print(balance)
+
+    async def printBalanceAll(self):
+        """
+        printBalance: prints balance of all nodes
+        """
+
+        print(f"Master: sending printBalance to all processes")
+        tasks = {}
+        for process in config.CORRECT_PROCESS_NAMES:
+            task = asyncio.create_task(
+                self._send_with_response(process,
+                            { 
+                                enum_transaction.TYPE.value: enum_transaction.PRINT_BALANCE.value,
+
+                            }
+                            )
+            )
+            tasks[process] = task
+
+        blockchain_list = []
+        for coro in asyncio.as_completed(tasks.values()):
+            try:
+                result = await coro
+            
+                from_process = result.get('from', '')
+                if not from_process:
+                    raise ValueError(f"Master: No 'from' in accept response")
+            
+                empty = result.get('empty')
+                if empty:
+                    blockchain_list.append((from_process, 'No response'))
+                    continue
+                # Check if it's a valid dict
+                if not isinstance(result, dict):
+                    raise ValueError(f"Master: Non-dict response in accept from {from_process}")
+                
+                balance = result.get(enum_transaction.PRINT_BALANCE.value)
+                if balance is None:
+                    raise ValueError(f"Master: {from_process} did not have print_balance")
+                blockchain_list.append((from_process, balance))
+
+            except Exception as e:
+                raise ValueError(f"Master: Exception in accept: {e}")
+            
+        print(f"Printing all balances for each process")
+        for p,b in blockchain_list:
+            print(f"Bank account for Process {p}: {b}")
 
     async def queue(self, process: str):
         """

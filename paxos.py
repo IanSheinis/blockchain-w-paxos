@@ -41,6 +41,8 @@ class paxos_enum():
         PROMISED_BALLOT = 'promised_ballot' # What acceptor sends back
         DEPTH = 'depth' #block depth
         RECOVERY = 'recovery'
+        FIRST_RECOVERY = 'first_recovery'
+        NO_RESPONSE = 'NO_RESPONSE'
 
 class proposer:
     # Prepare variables
@@ -658,18 +660,176 @@ class paxos:
         self.transaction_queue = deque()
         self.reset_condition = asyncio.Condition()
         
-    async def reboot(self):
+    async def _reboot(self):
         if len(sys.argv) > 2:
             raise ValueError('There should only be at max one argument')
         elif len(sys.argv) == 2:
             if sys.argv[1] == 'fix':
-                print('========= Initiating recovery algorithm ============')
+                print('========= Initiating recovery algorithm (runs when master calls fix) ============')
                 await self.recovery_algorithm()
             else:
                 raise ValueError(f'Unknown argument: {sys.argv[1]}')
         else:
-            print("======== First time start (No recovery algorithm will be ran) ==========")
+            await self._first_time_recovery()
 
+    async def _first_time_recovery(self):
+        """
+        Handles recovery when first initiated
+        """
+        print("================= Initiating FIRST time recovery algorithm (runs only on start up) =======================")
+        port = config.PORT_NUMBERS.get(self.process)
+        if not port:
+            raise ValueError(f"No port configured for process {self.process}")
+
+        server = await asyncio.start_server(
+            self._listen_first_time,
+            'localhost',
+            port
+        )
+
+        async with server:
+            # Run serving in background
+            serve_task = asyncio.create_task(server.serve_forever())
+
+            # Recovery logic (runs concurrently with server)
+            await asyncio.sleep(config.DELAY)
+            print(f"{self.process}: sending recovery msg to all processes")
+            tasks = {}
+            for process in self.external_processes:  # Exclude self
+                task = asyncio.create_task(
+                    self._send_with_response(process,
+                        {
+                            paxos_enum.json.TYPE.value: paxos_enum.json.FIRST_RECOVERY.value,
+                        },
+                    ), name=process
+                )
+                tasks[process] = task
+
+            timeout = 0  # If timeout is 4 abort
+            biggest_block_chain = self.blockchain
+            biggest_block_chain_length = 0
+            if biggest_block_chain:
+                biggest_block_chain_length = biggest_block_chain.length()
+
+            recovered = False
+            await asyncio.sleep(config.DELAY) # Make sure it receives msg
+            for coro in asyncio.as_completed(tasks.values()):
+                try:
+                    result = await coro
+                    from_process = result.get('from')
+                    if not from_process:
+                        raise ValueError('No from_process in recovery algorithm')
+                    if result.get('empty'):
+                        print(f'Could not connect to {from_process}, continuing first time recovery algorithm')
+                        continue
+                    blockchain_dict = result.get('blockchain')
+                    new_blockchain = block.Block._blockchain_from_json(blockchain_dict)
+                    if not new_blockchain:
+                        print(f"No blockchain has been found from {from_process}, continuing first time recovery algorithm")
+                        continue
+                    blockchain_length = new_blockchain.length()
+                    print(f"blockchain found from {from_process} with length {blockchain_length}")
+                    if blockchain_length < biggest_block_chain_length:
+                        print(f"blockchain from {from_process} has less length than max: {blockchain_length} < {biggest_block_chain_length}")
+                    else:
+                        biggest_block_chain_length = blockchain_length
+                        biggest_block_chain = new_blockchain
+                        print(f"New blockchain found from {from_process} with length {biggest_block_chain_length}")
+                        recovered = True
+
+                except ValueError:
+                    task = cast(asyncio.Task, coro)
+                    print(f"{self.process}: Tried connecting to {task.get_name()}, but timed out, continuing algorithm")
+                    timeout += 1
+                except OSError as e:
+                    task = cast(asyncio.Task, coro)
+                    print(f"{self.process}: Tried connecting to {task.get_name()}, but it is down, continuing recovery algorithm")
+                except Exception as e:
+                    task = cast(asyncio.Task, coro)
+                    print(f"{self.process}: Error from {task.get_name()}: {e}, continuing")  # Continue instead of raise
+
+            if timeout == 4:
+                print("All processes timedout when trying to retrieve their blockchain, shutting down process")
+                sys.exit(0)
+
+            if not biggest_block_chain:
+                print(f"All blockchains were empty, starting normally")
+            elif recovered:
+                print(f"Changing current blockchain to length {biggest_block_chain_length}")
+                self.update_blockchain(biggest_block_chain)
+            else:
+                print("No valid blockchain recovered, starting normally")
+
+            # Shutdown server after recovery
+            print(f"Process {self.process}: Recovery complete, terminating first-time listener...")
+            serve_task.cancel()
+            try:
+                await serve_task
+            except asyncio.CancelledError:
+                pass
+            server.close()
+            await server.wait_closed()
+            print(f"Process {self.process}: First-time listener terminated.")
+        
+
+
+    async def _listen_first_time(self, reader, writer):
+        try:
+            # Read incoming message
+            data = await reader.readline()
+            
+            if not data:
+                print(f"Process {self.process}: Received empty message")
+                return
+            
+            # "All message exchanges should have a constant delay (e.g., 3 seconds)."
+            await asyncio.sleep(config.DELAY)
+
+            # Parse message
+            message = json.loads(data.decode('utf-8'))
+            message_type = message.get(paxos_enum.json.TYPE.value)
+            from_process = message.get(paxos_enum.json.FROM.value, 'unknown')
+            blockchain_dict = None
+            if self.blockchain:
+                blockchain_dict = self.blockchain.to_json()
+
+            print(f"Process {self.process}: Received {message_type} from {from_process}, message: {message}")
+
+
+            # Listen
+            if from_process == 'master':
+                response = {
+                    'from' : self.process,
+                    'first' : True
+                }
+                writer.write((json.dumps(response) + '\n').encode('utf-8'))
+                print(f"Sending response: {response}")
+                await writer.drain()
+            elif message_type == paxos_enum.json.FIRST_RECOVERY.value:
+                response = {
+                    'from' : self.process,
+                    'blockchain' : blockchain_dict
+                }
+                writer.write((json.dumps(response) + '\n').encode('utf-8'))
+                print(f"Sending response: {response}")
+                await writer.drain()
+
+            else:
+                await writer.drain() # Send empty msg
+
+
+        except json.JSONDecodeError as e:
+            print(f"Process {self.process}: Invalid JSON received: {e}")
+        
+        except Exception as e:
+            print(f"Process {self.process}: Error handling message: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        finally:
+            # Always close the connection
+            writer.close()
+            await writer.wait_closed()
     async def recovery_algorithm(self):
         """
         FAIL/ recovery, make this process in limbo while waiting, 
@@ -710,6 +870,7 @@ class paxos:
                     continue
                 print(f"blockchain found, initiating recovery for blockchain: {new_blockchain}")
                 self.update_blockchain(new_blockchain)
+                print("------------- BLOCK RECOVERED -----------------")
                 return
             
             except ValueError:
@@ -733,7 +894,7 @@ class paxos:
         """
         Start server to listen for incoming Paxos messages
         """
-        await self.reboot()
+        await self._reboot()
         port = config.PORT_NUMBERS.get(self.process)
         
         if not port:
@@ -771,7 +932,7 @@ class paxos:
             message_type = message.get(paxos_enum.json.TYPE.value)
             from_process = message.get(paxos_enum.json.FROM.value, 'unknown')
             
-            print(f"Process {self.process}: Received {message_type} from {from_process}")
+            print(f"Process {self.process}: Received {message_type} from {from_process}, message: {message}")
             
             ############## Acceptor ####################
             # Route to appropriate handler
@@ -801,6 +962,7 @@ class paxos:
             
             elif message_type == paxos_enum.json.RECOVERY.value:
                 await self.handle_recovery(message, writer)
+
             ################ Master ###############
 
             elif message_type == transaction.enum_transaction.TRANSACTION.value:
@@ -1009,6 +1171,7 @@ class paxos:
 
     async def _send_with_response(self, process: str, msg_dict: dict) -> dict:
         try:
+            await asyncio.sleep(config.DELAY) # initiate fake delay
             port = config.PORT_NUMBERS.get(process)
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection('localhost', port),

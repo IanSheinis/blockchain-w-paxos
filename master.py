@@ -111,6 +111,15 @@ async def main():
                 )
                 print()
 
+            elif command == "balance_all":
+                if len(parts) != 1:
+                    print("Usage: balance_all")
+                    continue
+
+                print("Requesting balance_all")
+                await m.printBalanceAll()
+                print()
+
             elif command == "queue":
                 if len(parts) != 2:
                     print("Usage: queue <process>")

@@ -154,7 +154,7 @@ class proposer:
                     acceptVal = promise_acceptVal
 
             if not acceptVal or acceptNum == -1:
-                new_blockchain: block.Block = block.Block(transaction, current_blockchain, True) # Make block sending be tentative
+                new_blockchain: block.Block = block.Block(transaction, current_blockchain)
                 acceptVal = new_blockchain.to_json() # Send whole new block chain each time
                 print(f"Created new block: ")
                 print(new_blockchain) # You are expected to print the nonce and the hash values once the correct hash is computed... Also, print the hash pointers in the blockchain."
@@ -670,8 +670,7 @@ class paxos:
                 temp_block = block.Block._blockchain_from_json(self.acceptor.AcceptVal)
                 if not temp_block:
                     raise ValueError(f"For process {self.process}, temp_block is None")
-                temp_block.tentative = True  # Mark as tentative for acceptors
-                self.update_blockchain(temp_block) 
+                self.update_blockchain(temp_block, True) # if the node is a participant, when it receives a block from the leader it needs to write the block to the file and tag is as tentative.
                 writer.write((json.dumps(response) + '\n').encode('utf-8'))
                 print(f"Sending response: {response}")
                 await writer.drain()
@@ -758,14 +757,11 @@ class paxos:
             if new_blockchain is None:
                 raise ValueError(f"Process {self.process}: Failed to parse blockchain from DECISION")
             
-            new_blockchain.tentative_to_decide() # Make sure acceptor decision of block is final
-            self.update_blockchain(new_blockchain)
+            self.update_blockchain(new_blockchain, False)
             
             
             # Need to reset everything after decision
             await self.reset_all()
-            # Sometimes queue gets stuck
-            await self.handle_transaction()
 
     async def handle_transaction(self):
         """
@@ -802,7 +798,7 @@ class paxos:
         print(f"Process {self.process}: Proposing new block with transaction {transaction}")
         
         if not self.blockchain:
-            print(f"{self.process} has blockchain as none")
+            print(f"${self.process} has blockchain as none")
         success = await self.proposer.prepare(transaction, self.blockchain)
         
         if success:
@@ -815,15 +811,14 @@ class paxos:
             accepted_block: block.Block | None = block.Block._blockchain_from_json(accepted_dict)
             if not accepted_block:
                 raise ValueError('accepted_block is None')
-            accepted_block.tentative_to_decide() # Make sure block is decided when decision is made
-            self.update_blockchain(accepted_block)
+            self.update_blockchain(accepted_block, tentative=False)
             await self.reset_all()
         else:
             print(f"Process {self.process}: Block proposal failed ❌❌❌")
         
         return success
 
-    def update_blockchain(self, new_blockchain: block.Block):
+    def update_blockchain(self, new_blockchain: block.Block, tentative: bool = False):
         # Check if this is newer than what we have
         if self.blockchain:
             current_length = self.blockchain.length()
@@ -849,7 +844,7 @@ class paxos:
             filename = config.CORRECT_FILE_NAMES_DICT.get(self.process)
             if not filename:
                 raise ValueError(f'Can not find filename for process {self.process}')
-            self.blockchain.write_to_json(filename)
+            self.blockchain.write_to_json(filename, tentative)
         except Exception as e:
             raise ValueError(f"Process {self.process}: Error saving blockchain: {e}")
 

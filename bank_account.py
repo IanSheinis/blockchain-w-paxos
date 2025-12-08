@@ -19,7 +19,7 @@ class Bank_Account:
     
     def _rebuild_from_blockchain(self, tail: Block):
         """Rebuild balances by applying all transactions from blockchain"""
-        blocks: list[Block] = []
+        blocks = []
         current = tail
         while current is not None:
             blocks.append(current)
@@ -28,16 +28,13 @@ class Bank_Account:
         blocks.reverse()
         
         for block in blocks:
-            if not block.tentative:
-                self.transfer(block)
+            self.transfer(block)
         
         print(f"✓ Rebuilt balances from {len(blocks)} blocks")
 
     def transfer(self, block: Block):
         """Execute transaction"""
         transaction: Transaction = block.transaction
-        if block.tentative:
-            raise ValueError("Transfer should not be tentative")
         sender = transaction.sender_id
         receiver = transaction.receiver_id
         amount = transaction.amount

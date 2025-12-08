@@ -16,10 +16,12 @@ async def main():
     print("="*60)
     print("\nCommands:")
     print(" transfer <from> <to> <amount> - Transfer money")
-    print(" balance - Print balance for all 5 processes")
+    print(" balance <process> - Print balance for a single processes")
+    print(" balance_all - Print balance for all processes")
     print(" blockchain <process> - Print blockchain")
     print(" fail <process> - Fail a process")
     print(" fix <process> - Fix a process")
+    print(" reset_all - Reset all process proposer/acceptors")
     print(" queue <process> - Print queue for process")
     print(" queue_start <process> - Start queue for process")
     print(" queue_delete <process> - Delete queue for process")
@@ -118,6 +120,15 @@ async def main():
 
                 print("Requesting balance_all")
                 await m.printBalanceAll()
+                print()
+
+            elif command == "reset_all":
+                if len(parts) != 1:
+                    print("Usage: reset_all")
+                    continue
+
+                print("Requesting reset_all")
+                await m.reset_all()
                 print()
 
             elif command == "queue":

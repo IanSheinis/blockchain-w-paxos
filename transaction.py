@@ -22,6 +22,7 @@ class enum_transaction(Enum):
     QUEUE_START = 'queue_start'
     QUEUE_DELETE = 'queue_delete'
     TYPE = 'type'
+    RESET_ALL = 'reset_all'
     
 class master:
     async def _send(self, process: str, msg_dict: dict):
@@ -50,6 +51,10 @@ class master:
         
         except asyncio.TimeoutError:
             print(f"Master: Timed out in sending to {process}")
+
+        except OSError as e:
+            print(f"Could not connect to process {process}, possibly down?")
+            return {'from': process, 'empty': True}
     
         except Exception as e:
             print(f"Master: Error sending to {process}: {e}")
@@ -87,6 +92,9 @@ class master:
                 return {'from': process, 'empty': True}
         except asyncio.TimeoutError:
             raise ValueError(f"Master: Timed out in sending to {process}")
+        except OSError as e:
+            print(f"Could not connect to process {process}, possibly down?")
+            return {'from': process, 'empty': True}
         except Exception as e:
             raise ValueError(f"Master: Error sending to {process}: {e}")
 
@@ -124,7 +132,24 @@ class master:
         })
     
         print(f"Master: Sent fail process to {process}")
-        
+
+    async def reset_all(self):
+        """
+        Reset all processes proposer and acceptor
+        """
+
+        tasks = []
+        for process in config.CORRECT_PROCESS_NAMES:
+            task = asyncio.create_task(
+                self._send(process,
+                            {
+                                enum_transaction.TYPE.value: enum_transaction.RESET_ALL.value
+                            }),
+                name=process
+            )
+        await asyncio.gather(*tasks, return_exceptions=True)
+        print("Sent reset all to all processes")
+
     async def fix_process(self, process):
         """
         fixProcess: This input will restart the process after it has failed. The process should resume
@@ -216,7 +241,7 @@ class master:
             try:
                 result = await coro
             
-                from_process = result.get('from', '')
+                from_process = result.get('from')
                 if not from_process:
                     raise ValueError(f"Master: No 'from' in accept response")
             

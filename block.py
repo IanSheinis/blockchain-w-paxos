@@ -30,8 +30,13 @@ class Block_Json:
     
     @classmethod
     def from_dict(cls, data: dict) -> Block_Json:
-        """Convert dictionary to Block_Json"""
-        return cls(**data) 
+        """Convert dictionary to Block_Json, ignoring extra keys like 'tentative'"""
+        # Filter to only expected fields
+        filtered_data = {
+            k: v for k, v in data.items()
+            if k in ('sender_id', 'receiver_id', 'amount', 'hash_pointer', 'nonce', 'hash_result')
+        }
+        return cls(**filtered_data)
     
     def to_block(self, prev_block: Block | None) -> Block:
         """Convert Block_Json back to Block (restore, dont mine)"""
@@ -71,7 +76,7 @@ class Block:
         if not blockchain_list:
             return None
         
-        tentative = blockchain_dict.get("tentative", False) # Default to false, need to be careful of this
+        tentative = blockchain_list[-1].get("tentative", False) # Default to false, need to be careful of this
         if tentative == None:
             raise ValueError("No tentative")
         current: Block | None = None
@@ -116,9 +121,13 @@ class Block:
     
         data = self.to_json()
         if tentative: # if the node is a participant, when it receives a block from the leader it needs to write the block to the file and tag is as tentative
-            data["tentative"] = True
+            data["blockchain"][-1]["tentative"] = True
         else:
-            data["tentative"] = False
+            data["blockchain"][-1]["tentative"] = False
+
+        for block in data["blockchain"][:-1]:
+            block["tentative"] = False
+        
         with open(filename, 'w') as f:
             json.dump(data, f, indent=2)
 

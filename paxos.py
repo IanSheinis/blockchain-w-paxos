@@ -514,7 +514,10 @@ class proposer:
         self.acceptVal = {}
         self.reset = True
         
+        async with self.outer.reset_condition:
+            self.outer.reset_condition.notify_all()
         print(f"Process {self.process_id}: Proposer reset complete")
+
 
 
 class acceptor:
@@ -633,7 +636,7 @@ class acceptor:
                 paxos_enum.json.PROMISED_BALLOT.value: self.BallotNum
             }
         
-    def reset_all(self):
+    async def reset_all(self):
         """
         Called after decision
         """
@@ -642,6 +645,9 @@ class acceptor:
         self.AcceptNum = -1
         self.AcceptVal = {}
         self.reset = True
+
+        async with self.outer.reset_condition:
+            self.outer.reset_condition.notify_all()
         
 class paxos:
     def __init__(self, process_name: str):
@@ -659,6 +665,7 @@ class paxos:
         self.proposer_lock = asyncio.Lock()  # Prevent concurrent decision processing
         self.transaction_queue = deque()
         self.reset_condition = asyncio.Condition()
+        self.retries = 0 # Fail safe for retries
         
     async def _reboot(self):
         if len(sys.argv) > 2:
@@ -998,6 +1005,9 @@ class paxos:
                 print("Received fail process, shutting down")
                 sys.exit(0)
 
+            elif message_type == transaction.enum_transaction.RESET_ALL.value:
+                await self.reset_all()
+
             elif message_type == transaction.enum_transaction.QUEUE.value:
                 queue_list = [transaction.asdict(t) for t in self.transaction_queue]
                 response = {
@@ -1010,6 +1020,8 @@ class paxos:
                 await self.handle_transaction()
             elif message_type == transaction.enum_transaction.QUEUE_DELETE.value:
                 self.transaction_queue.clear()
+                self.retries = 0
+                await self.proposer.reset_all() # For recovery alg
             else:
                 raise ValueError(f"Process {self.process}: Unknown message type: {message}")
         
@@ -1090,6 +1102,16 @@ class paxos:
                 success = await self.propose_block()
                 if success:
                     print('Success in proposing loop')
+                else:
+                    self.retries += 1
+                    print(f'Failure in proposing loop, retry = {self.retries}')
+                    if self.retries == 3:
+                        print(f'Too many retries, emptying queue')
+                        self.transaction_queue.clear()
+                        self.retries = 0
+                        await self.proposer.reset_all()
+                        print(f"Transaction queue {self.transaction_queue}")
+                        return
             # Retry logic outside the lock to avoid re-acquiring while held
             sleep_time = config.DELAY * 5 + config.DELAY * 3 * random.random() # Random sleep time to ensure termination of paxos
             print(f"{self.process} out of loop, will wait {sleep_time}\nCurrent transaction queue {self.transaction_queue}")
@@ -1163,11 +1185,13 @@ class paxos:
             raise ValueError(f"Process {self.process}: Error saving blockchain: {e}")
 
     async def reset_all(self):
+        self.retries = 0
         await self.proposer.reset_all()
-        self.acceptor.reset_all()
+        await self.acceptor.reset_all()
 
         async with self.reset_condition:
             self.reset_condition.notify_all()
+        print("Ran reset all")
 
     async def _send_with_response(self, process: str, msg_dict: dict) -> dict:
         try:
